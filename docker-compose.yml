@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-covey}
+      POSTGRES_USER: ${POSTGRES_USER:-covey}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./packages/db/migrations/001_initial/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+      - ./packages/db/migrations/002_feed_inventory_and_cameras/002_feed_inventory_and_cameras.sql:/docker-entrypoint-initdb.d/002_feed_inventory_and_cameras.sql:ro
+      - ./packages/db/migrations/003_hatch_batch_links/003_hatch_batch_links.sql:/docker-entrypoint-initdb.d/003_hatch_batch_links.sql:ro
+      - ./packages/db/migrations/004_feed_inventory_events/004_feed_inventory_events.sql:/docker-entrypoint-initdb.d/004_feed_inventory_events.sql:ro
+      - ./packages/db/migrations/005_password_reset_tokens/005_password_reset_tokens.sql:/docker-entrypoint-initdb.d/005_password_reset_tokens.sql:ro
+      - ./packages/db/migrations/006_user_mfa/006_user_mfa.sql:/docker-entrypoint-initdb.d/006_user_mfa.sql:ro
+      - ./packages/db/migrations/007_backup_runs/007_backup_runs.sql:/docker-entrypoint-initdb.d/007_backup_runs.sql:ro
+      - ./packages/db/migrations/008_audit_indexes/008_audit_indexes.sql:/docker-entrypoint-initdb.d/008_audit_indexes.sql:ro
+      - ./packages/db/migrations/009_feed_vendor/009_feed_vendor.sql:/docker-entrypoint-initdb.d/009_feed_vendor.sql:ro
+      - ./packages/db/migrations/010_sales_and_health_records/010_sales_and_health_records.sql:/docker-entrypoint-initdb.d/010_sales_and_health_records.sql:ro
+      - ./packages/db/migrations/011_photo_attachments/011_photo_attachments.sql:/docker-entrypoint-initdb.d/011_photo_attachments.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  go2rtc:
+    image: ${GO2RTC_IMAGE:-alexxit/go2rtc:latest}
+    restart: unless-stopped
+    ports:
+      - "${GO2RTC_BIND:-127.0.0.1}:${GO2RTC_PORT:-1984}:1984"
+      - "${GO2RTC_WEBRTC_BIND:-127.0.0.1}:${GO2RTC_WEBRTC_PORT:-8555}:8555/tcp"
+      - "${GO2RTC_WEBRTC_BIND:-127.0.0.1}:${GO2RTC_WEBRTC_PORT:-8555}:8555/udp"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      go2rtc:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      API_PORT: ${API_PORT:-8080}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://covey:change-me-in-production@postgres:5432/covey}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-with-at-least-32-random-bytes}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      GO2RTC_URL: ${GO2RTC_URL:-http://go2rtc:1984}
+      GO2RTC_PUBLIC_URL: ${GO2RTC_PUBLIC_URL:-http://localhost:1984}
+      GO2RTC_PLAYBACK_MODE: ${GO2RTC_PLAYBACK_MODE:-mse}
+      GO2RTC_WEBRTC_CANDIDATE: ${GO2RTC_WEBRTC_CANDIDATE:-127.0.0.1:8555}
+      GO2RTC_WEBRTC_LISTEN: ${GO2RTC_WEBRTC_LISTEN:-:8555/tcp}
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      BACKUP_SCHEDULE_CHECK_MS: ${BACKUP_SCHEDULE_CHECK_MS:-3600000}
+    volumes:
+      - backup-data:/app/backups
+      - upload-data:/app/uploads
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:8080}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3000}:80"
+
+volumes:
+  postgres-data:
+  backup-data:
+  upload-data:

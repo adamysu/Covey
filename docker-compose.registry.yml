@@ -1,0 +1,18 @@
+# Optional override for pulling prebuilt Covey images from a registry instead of
+# building on the server. Use with:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d --no-build
+#
+# Keep docker-compose.yml as the source of ports, volumes, database, go2rtc, and
+# environment. This file only replaces web/api build contexts with image names.
+# Use --no-build on deploy so Compose does not rebuild from the local Dockerfiles.
+
+services:
+  api:
+    image: ${COVEY_API_IMAGE:?Set COVEY_API_IMAGE in .env}
+    build: null
+
+  web:
+    image: ${COVEY_WEB_IMAGE:?Set COVEY_WEB_IMAGE in .env}
+    build: null
