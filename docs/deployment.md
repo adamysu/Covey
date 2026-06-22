@@ -35,6 +35,7 @@ Important: the web image bakes in `PUBLIC_API_URL` at build time through Vite. I
    - `POSTGRES_PASSWORD`
    - `DATABASE_URL` password to match `POSTGRES_PASSWORD`
    - `SESSION_SECRET`
+   - `API_HOST_PORT` if host port `8080` is already in use
    - `PUBLIC_API_URL`
    - `CORS_ORIGIN`
 
@@ -47,7 +48,7 @@ Important: the web image bakes in `PUBLIC_API_URL` at build time through Vite. I
 4. Open the app.
 
    - Web: `http://SERVER_IP:3000`
-   - API health: `http://SERVER_IP:8080/health`
+   - API health: `http://SERVER_IP:API_HOST_PORT/health`
 
 5. Create the first owner account and homestead.
 
