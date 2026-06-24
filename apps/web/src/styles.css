@@ -786,6 +786,27 @@ h2 {
   background: rgba(250, 245, 232, 0.68);
 }
 
+.table-section {
+  display: grid;
+  gap: 14px;
+}
+
+.table-section .table-card {
+  margin-top: 0;
+}
+
+.table-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.table-section-header h3,
+.table-section-header p {
+  margin-bottom: 0;
+}
+
 .table-control-panel {
   border-bottom: 1px solid rgba(49, 65, 43, 0.12);
   padding: 16px 18px;
@@ -1770,6 +1791,10 @@ h2 {
 .table-bulk-actions {
   justify-content: flex-end;
   margin: 8px 0 12px;
+}
+
+.table-control-panel .table-bulk-actions {
+  margin: 0;
 }
 
 .bulk-edit-form {

@@ -9322,66 +9322,73 @@ function FeedManager({
         ) : null}
       </div>
 
-      <section className="subpanel">
-        <p className="eyebrow">Catalog</p>
-        <h3>Feeds</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk feed actions">
-          <span>
-            {selectedFeedTypeIds.length > 1
-              ? `${selectedFeedTypeIds.length} selected`
-              : selectedFeedTypeIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select rows for bulk actions"}
-          </span>
-          {selectedFeedTypeIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkFeedEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkFeedDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Catalog</p>
+            <h3>Feeds</h3>
+            <p className="muted compact-copy">Click a row to open feed details. Select multiple rows for bulk edits.</p>
+          </div>
         </div>
-        {bulkFeedEditing && selectedFeedTypeIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkFeedEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedFeedTypeIds.length} selected feeds</strong>
-              <span>Fields left as no change will be skipped.</span>
-            </div>
-            <label>
-              Status
-              <select value={bulkFeedActive} onChange={(event) => setBulkFeedActive(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </label>
-            <label>
-              Protein %
-              <input
-                min="0"
-                max="100"
-                placeholder="No change"
-                step="0.1"
-                type="number"
-                value={bulkFeedProtein}
-                onChange={(event) => setBulkFeedProtein(event.target.value)}
-              />
-            </label>
-            <div className="row-actions">
-              <button disabled={busy || (bulkFeedActive === "NO_CHANGE" && !bulkFeedProtein.trim())} type="submit">
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkFeedEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
         <div className="table-card">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk feed actions">
+              <span>
+                {selectedFeedTypeIds.length > 1
+                  ? `${selectedFeedTypeIds.length} selected`
+                  : selectedFeedTypeIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select rows for bulk actions"}
+              </span>
+              {selectedFeedTypeIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkFeedEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkFeedDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {bulkFeedEditing && selectedFeedTypeIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkFeedEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedFeedTypeIds.length} selected feeds</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Status
+                  <select value={bulkFeedActive} onChange={(event) => setBulkFeedActive(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </label>
+                <label>
+                  Protein %
+                  <input
+                    min="0"
+                    max="100"
+                    placeholder="No change"
+                    step="0.1"
+                    type="number"
+                    value={bulkFeedProtein}
+                    onChange={(event) => setBulkFeedProtein(event.target.value)}
+                  />
+                </label>
+                <div className="row-actions">
+                  <button disabled={busy || (bulkFeedActive === "NO_CHANGE" && !bulkFeedProtein.trim())} type="submit">
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkFeedEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
           {feedTypes.length ? (
             <div className="feed-list">
               <div className="feed-row feed-table-head">
@@ -9517,75 +9524,82 @@ function FeedManager({
         </div>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Inventory</p>
-        <h3>Restock history</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk restock actions">
-          <span>
-            {selectedRestockIds.length > 1
-              ? `${selectedRestockIds.length} selected`
-              : selectedRestockIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select rows for bulk actions"}
-          </span>
-          {selectedRestockIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkRestockEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkRestockDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Inventory</p>
+            <h3>Restock history</h3>
+            <p className="muted compact-copy">Purchases and additions that increase feed inventory.</p>
+          </div>
         </div>
-        {bulkRestockEditing && selectedRestockIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkRestockEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedRestockIds.length} selected restocks</strong>
-              <span>Fields left as no change will be skipped.</span>
-            </div>
-            <label>
-              Feed
-              <select value={bulkRestockFeedId} onChange={(event) => setBulkRestockFeedId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {feedTypes.map((feed) => (
-                  <option key={feed.id} value={feed.id}>{feedTypeLabel(feed)}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Unit
-              <select value={bulkRestockUnit} onChange={(event) => setBulkRestockUnit(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                <option value="bag">Bags</option>
-                <option value="cup">Cups</option>
-                <option value="lb">Pounds</option>
-                <option value="oz">Ounces</option>
-              </select>
-            </label>
-            <label>
-              Notes
-              <input placeholder="No change" value={bulkRestockNotes} onChange={(event) => setBulkRestockNotes(event.target.value)} />
-            </label>
-            <div className="row-actions">
-              <button
-                disabled={
-                  busy ||
-                  (bulkRestockFeedId === "NO_CHANGE" && bulkRestockUnit === "NO_CHANGE" && !bulkRestockNotes.trim())
-                }
-                type="submit"
-              >
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkRestockEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
         <div className="table-card">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk restock actions">
+              <span>
+                {selectedRestockIds.length > 1
+                  ? `${selectedRestockIds.length} selected`
+                  : selectedRestockIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select rows for bulk actions"}
+              </span>
+              {selectedRestockIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkRestockEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkRestockDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {bulkRestockEditing && selectedRestockIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkRestockEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedRestockIds.length} selected restocks</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Feed
+                  <select value={bulkRestockFeedId} onChange={(event) => setBulkRestockFeedId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {feedTypes.map((feed) => (
+                      <option key={feed.id} value={feed.id}>{feedTypeLabel(feed)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Unit
+                  <select value={bulkRestockUnit} onChange={(event) => setBulkRestockUnit(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="bag">Bags</option>
+                    <option value="cup">Cups</option>
+                    <option value="lb">Pounds</option>
+                    <option value="oz">Ounces</option>
+                  </select>
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkRestockNotes} onChange={(event) => setBulkRestockNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={
+                      busy ||
+                      (bulkRestockFeedId === "NO_CHANGE" && bulkRestockUnit === "NO_CHANGE" && !bulkRestockNotes.trim())
+                    }
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkRestockEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
           {feedInventoryEvents.length ? (
             <div className="feed-log-list">
               <div className="feed-log-row feed-log-table-head">
@@ -9707,86 +9721,93 @@ function FeedManager({
         </div>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Logs</p>
-        <h3>Feed top-offs</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk top-off actions">
-          <span>
-            {selectedTopOffIds.length > 1
-              ? `${selectedTopOffIds.length} selected`
-              : selectedTopOffIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select rows for bulk actions"}
-          </span>
-          {selectedTopOffIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkTopOffEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkTopOffDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Logs</p>
+            <h3>Feed top-offs</h3>
+            <p className="muted compact-copy">Feeder top-offs by coop, feed, amount, and estimated cost.</p>
+          </div>
         </div>
-        {bulkTopOffEditing && selectedTopOffIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkTopOffEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedTopOffIds.length} selected top-offs</strong>
-              <span>Fields left as no change will be skipped.</span>
-            </div>
-            <label>
-              Coop
-              <select value={bulkTopOffCoopId} onChange={(event) => setBulkTopOffCoopId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {coops.map((coop) => (
-                  <option key={coop.id} value={coop.id}>{coop.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Feed
-              <select value={bulkTopOffFeedId} onChange={(event) => setBulkTopOffFeedId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {feedTypes.map((feed) => (
-                  <option key={feed.id} value={feed.id}>{feedTypeLabel(feed)}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Unit
-              <select value={bulkTopOffUnit} onChange={(event) => setBulkTopOffUnit(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                <option value="cup">Cups</option>
-                <option value="lb">Pounds</option>
-                <option value="oz">Ounces</option>
-              </select>
-            </label>
-            <label>
-              Notes
-              <input placeholder="No change" value={bulkTopOffNotes} onChange={(event) => setBulkTopOffNotes(event.target.value)} />
-            </label>
-            <div className="row-actions">
-              <button
-                disabled={
-                  busy ||
-                  (bulkTopOffCoopId === "NO_CHANGE" &&
-                    bulkTopOffFeedId === "NO_CHANGE" &&
-                    bulkTopOffUnit === "NO_CHANGE" &&
-                    !bulkTopOffNotes.trim())
-                }
-                type="submit"
-              >
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkTopOffEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
         <div className="table-card">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk top-off actions">
+              <span>
+                {selectedTopOffIds.length > 1
+                  ? `${selectedTopOffIds.length} selected`
+                  : selectedTopOffIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select rows for bulk actions"}
+              </span>
+              {selectedTopOffIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkTopOffEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkTopOffDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {bulkTopOffEditing && selectedTopOffIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkTopOffEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedTopOffIds.length} selected top-offs</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Coop
+                  <select value={bulkTopOffCoopId} onChange={(event) => setBulkTopOffCoopId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {coops.map((coop) => (
+                      <option key={coop.id} value={coop.id}>{coop.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Feed
+                  <select value={bulkTopOffFeedId} onChange={(event) => setBulkTopOffFeedId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {feedTypes.map((feed) => (
+                      <option key={feed.id} value={feed.id}>{feedTypeLabel(feed)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Unit
+                  <select value={bulkTopOffUnit} onChange={(event) => setBulkTopOffUnit(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="cup">Cups</option>
+                    <option value="lb">Pounds</option>
+                    <option value="oz">Ounces</option>
+                  </select>
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkTopOffNotes} onChange={(event) => setBulkTopOffNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={
+                      busy ||
+                      (bulkTopOffCoopId === "NO_CHANGE" &&
+                        bulkTopOffFeedId === "NO_CHANGE" &&
+                        bulkTopOffUnit === "NO_CHANGE" &&
+                        !bulkTopOffNotes.trim())
+                    }
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkTopOffEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
           {feedLogs.length ? (
             <div className="feed-log-list">
               <div className="feed-log-row feed-log-table-head">
