@@ -2705,6 +2705,23 @@ h2 {
   margin-right: auto;
 }
 
+.calendar-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #61705a;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.calendar-jump select {
+  width: auto;
+  min-height: 42px;
+  padding: 8px 34px 8px 12px;
+  border-radius: 999px;
+}
+
 .calendar-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));

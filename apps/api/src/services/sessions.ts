@@ -4,16 +4,34 @@ import { db } from "../db.js";
 import { env } from "../config/env.js";
 
 const cookieName = "covey_session";
-const sessionDays = 30;
+const defaultSessionHours = 24;
+const defaultRememberMeDays = 30;
 
 function hashToken(token: string) {
   return createHash("sha256").update(`${token}.${env.SESSION_SECRET}`).digest("hex");
 }
 
-export async function createSession(reply: FastifyReply, userId: string) {
+function boundedNumber(value: unknown, fallback: number, min: number, max: number) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
+}
+
+export async function createSession(reply: FastifyReply, userId: string, rememberMe = false) {
   const token = randomBytes(32).toString("base64url");
   const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
+  const settings = await db.query(
+    `select homestead_settings.preferences
+       from users
+       join homestead_settings on homestead_settings.homestead_id = users.homestead_id
+      where users.id = $1`,
+    [userId]
+  );
+  const preferences = settings.rows[0]?.preferences ?? {};
+  const standardHours = boundedNumber(preferences.sessionDurationHours, defaultSessionHours, 1, 24 * 30);
+  const rememberDays = boundedNumber(preferences.rememberMeDurationDays, defaultRememberMeDays, 1, 365);
+  const durationMs = rememberMe ? rememberDays * 24 * 60 * 60 * 1000 : standardHours * 60 * 60 * 1000;
+  const expiresAt = new Date(Date.now() + durationMs);
 
   await db.query(
     "insert into sessions (user_id, token_hash, expires_at) values ($1, $2, $3)",

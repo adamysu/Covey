@@ -16,7 +16,8 @@ const bootstrapSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  mfaCode: z.string().optional()
+  mfaCode: z.string().optional(),
+  rememberMe: z.boolean().optional()
 });
 
 const resetRequestSchema = z.object({
@@ -217,7 +218,7 @@ export async function authRoutes(app: FastifyInstance) {
       return { mfaRequired: true };
     }
 
-    await createSession(reply, user.id);
+    await createSession(reply, user.id, input.rememberMe === true);
     delete user.password_hash;
     delete user.mfa_secret;
     delete user.mfa_enabled_at;

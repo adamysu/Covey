@@ -42,6 +42,7 @@ type MfaSetup = {
 type PendingLogin = {
   email: string;
   password: string;
+  rememberMe: boolean;
 };
 
 type Homestead = {
@@ -838,7 +839,9 @@ function homesteadSettingsPayload(form: HTMLFormElement, extraPreferences: Recor
     "lockdownHumidity",
     "candleReminderLeadDays",
     "lockdownReminderLeadDays",
-    "passwordMinLength"
+    "passwordMinLength",
+    "sessionDurationHours",
+    "rememberMeDurationDays"
   ];
 
   for (const field of textFields) {
@@ -1054,6 +1057,10 @@ function monthLabel(value: string) {
     month: "long",
     year: "numeric"
   });
+}
+
+function monthKeyFromParts(year: number, monthIndex: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 }
 
 function calendarGridDates(value: string) {
@@ -1728,16 +1735,18 @@ export function App() {
       const form = event.currentTarget;
       const email = fieldValue(form, "email");
       const password = fieldValue(form, "password");
+      const rememberMe = fieldValue(form, "rememberMe") === "on";
       const result = await apiRequest<{ user?: User; mfaRequired?: boolean }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({
           email,
-          password
+          password,
+          rememberMe
         })
       });
 
       if (result.mfaRequired || !result.user) {
-        setPendingLogin({ email, password });
+        setPendingLogin({ email, password, rememberMe });
         setAuthMode("mfa");
         setMessage("Enter the 6-digit authenticator code for this account.");
         return;
@@ -3682,6 +3691,10 @@ function AuthPanel({
             <label>
               Password
               <input name="password" required type="password" />
+            </label>
+            <label className="check-row">
+              <input name="rememberMe" type="checkbox" />
+              Remember me on this device
             </label>
             <button disabled={busy} type="submit">
               {busy ? "Signing in..." : "Sign in"}
@@ -7968,6 +7981,26 @@ function SettingsManager({
                 <option value="yes">Yes, recommended later</option>
               </select>
             </label>
+            <label>
+              Standard session duration, hours
+              <input
+                name="sessionDurationHours"
+                type="number"
+                min="1"
+                max="720"
+                defaultValue={displayPreference(homestead, "sessionDurationHours", 24)}
+              />
+            </label>
+            <label>
+              Remember me duration, days
+              <input
+                name="rememberMeDurationDays"
+                type="number"
+                min="1"
+                max="365"
+                defaultValue={displayPreference(homestead, "rememberMeDurationDays", 30)}
+              />
+            </label>
           </article>
         </div>
 
@@ -10648,6 +10681,10 @@ function WorkCalendar({
   const [priorityFilter, setPriorityFilter] = useState<CalendarPriorityFilter>("all");
   const [sectionFilter, setSectionFilter] = useState<CalendarSectionFilter>("all");
   const today = dateKeyDaysAgo(0);
+  const visibleMonthDate = new Date(`${visibleMonth}-01T12:00:00`);
+  const visibleYear = visibleMonthDate.getFullYear();
+  const visibleMonthIndex = visibleMonthDate.getMonth();
+  const yearOptions = Array.from({ length: 11 }, (_, index) => visibleYear - 5 + index);
   const activeItems = items.filter((item) => normalizeDateKey(item.dueDate));
   const completedItems = customItems
     .filter((item) => item.completedAt)
@@ -10698,6 +10735,17 @@ function WorkCalendar({
     setSectionFilter("all");
   }
 
+  function selectCalendarDate(date: string) {
+    setSelectedDate(date);
+    setVisibleMonth(monthKey(date));
+  }
+
+  function setCalendarMonth(year: number, monthIndex: number) {
+    const nextMonth = monthKeyFromParts(year, monthIndex);
+    setVisibleMonth(nextMonth);
+    setSelectedDate(`${nextMonth}-01`);
+  }
+
   return (
     <section className="panel">
       <div className="dashboard-header">
@@ -10736,13 +10784,49 @@ function WorkCalendar({
       </section>
 
       <div className="work-controls calendar-controls">
-        <button className="secondary" type="button" onClick={() => setVisibleMonth(shiftMonth(visibleMonth, -1))}>
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => {
+            const nextMonth = shiftMonth(visibleMonth, -1);
+            setVisibleMonth(nextMonth);
+            setSelectedDate(`${nextMonth}-01`);
+          }}
+        >
           Previous
         </button>
         <strong>{monthLabel(visibleMonth)}</strong>
-        <button className="secondary" type="button" onClick={() => setVisibleMonth(shiftMonth(visibleMonth, 1))}>
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => {
+            const nextMonth = shiftMonth(visibleMonth, 1);
+            setVisibleMonth(nextMonth);
+            setSelectedDate(`${nextMonth}-01`);
+          }}
+        >
           Next
         </button>
+        <label className="calendar-jump">
+          <span>Month</span>
+          <select value={visibleMonthIndex} onChange={(event) => setCalendarMonth(visibleYear, Number(event.target.value))}>
+            {Array.from({ length: 12 }, (_, index) => (
+              <option key={index} value={index}>
+                {new Date(2026, index, 1).toLocaleDateString(undefined, { month: "long" })}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="calendar-jump">
+          <span>Year</span>
+          <select value={visibleYear} onChange={(event) => setCalendarMonth(Number(event.target.value), visibleMonthIndex)}>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           className="secondary"
           type="button"
@@ -10819,9 +10903,9 @@ function WorkCalendar({
               key={date}
               role="button"
               tabIndex={0}
-              onClick={() => setSelectedDate(date)}
+              onClick={() => selectCalendarDate(date)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") setSelectedDate(date);
+                if (event.key === "Enter" || event.key === " ") selectCalendarDate(date);
               }}
             >
               <div className="calendar-cell-head">
@@ -10899,7 +10983,7 @@ function WorkCalendar({
                 : "No matching items for this day."}
             </p>
           </div>
-          <button className="secondary" type="button" onClick={() => setSelectedDate(today)}>
+          <button className="secondary" type="button" onClick={() => selectCalendarDate(today)}>
             Select today
           </button>
         </div>
