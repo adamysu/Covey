@@ -15,6 +15,7 @@ Covey is the deployable version of the quail management app. It is intentionally
 - Database migration SQL for the quail domain model
 - Internal go2rtc camera proxy for coop RTSP playback
 - Sanitized JSON export, import preview/import, and local backup scheduler
+- Sales, health records, profile photos, audit history, calendar, and CSV reports
 
 ## Quick Start
 
@@ -112,4 +113,8 @@ docker compose up -d --build
 
 ## Current Status
 
-This is the infrastructure foundation. The static prototype still contains the complete UI feature exploration. The next step is to move the prototype screens into `apps/web` and connect each page to API routes backed by Postgres.
+The deployable app now covers the core prototype workflows plus backend-only upgrades such as
+accounts, cameras, reports, sales, health records, profile photos, backups, audit history, and
+home-server deployment. The main remaining V1 work is polish, deployment hardening, and optional
+extensions such as external calendar export, bird variety profiles, broader inventory, and breeding
+decision tools.

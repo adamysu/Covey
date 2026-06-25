@@ -931,6 +931,64 @@ function downloadCsv(filename: string, rows: Array<Record<string, string | numbe
   URL.revokeObjectURL(link.href);
 }
 
+function escapeCalendarText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+function calendarStamp(date = new Date()) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function calendarDate(value: string) {
+  return normalizeDateKey(value)?.replaceAll("-", "") ?? "";
+}
+
+function downloadIcs(filename: string, items: WorkItem[]) {
+  const datedItems = items.filter((item) => normalizeDateKey(item.dueDate));
+  if (!datedItems.length) return;
+
+  const stamp = calendarStamp();
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Covey//Work Calendar//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "X-WR-CALNAME:Covey Work Calendar",
+    ...datedItems.flatMap((item) => {
+      const start = calendarDate(item.dueDate ?? "");
+      const end = calendarDate(dateKeyAddDays(item.dueDate ?? "", 1));
+      const kind = item.kind ?? "todo";
+      const description = [
+        item.detail,
+        `Priority: ${item.priority}`,
+        `Area: ${sectionTitle(item.section)}`,
+        `Type: ${kind === "recommendation" ? "Recommendation" : kind === "custom" ? "Custom chore" : "System task"}`
+      ].filter(Boolean).join("\\n");
+
+      return [
+        "BEGIN:VEVENT",
+        `UID:covey-${kind}-${item.id}@covey.local`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${start}`,
+        `DTEND;VALUE=DATE:${end}`,
+        `SUMMARY:${escapeCalendarText(item.title)}`,
+        `DESCRIPTION:${escapeCalendarText(description)}`,
+        `CATEGORIES:${escapeCalendarText(sectionTitle(item.section))},${item.priority.toUpperCase()}`,
+        "END:VEVENT"
+      ];
+    }),
+    "END:VCALENDAR"
+  ];
+
+  const blob = new Blob([`${lines.join("\r\n")}\r\n`], { type: "text/calendar;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function readFileDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -10895,6 +10953,14 @@ function WorkCalendar({
             System reminders, recommendations with dates, and custom keeper tasks are grouped by due date.
           </p>
         </div>
+        <button
+          className="secondary"
+          disabled={!scopedItems.length}
+          type="button"
+          onClick={() => downloadIcs(`covey-calendar-${visibleMonth}.ics`, scopedItems)}
+        >
+          Export iCal
+        </button>
       </div>
 
       <CustomTaskForm onCreateCustom={onCreateCustom} />

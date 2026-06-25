@@ -36,6 +36,7 @@ Important: the web image bakes in `PUBLIC_API_URL` at build time through Vite. I
    - `DATABASE_URL` password to match `POSTGRES_PASSWORD`
    - `SESSION_SECRET`
    - `API_HOST_PORT` if host port `8080` is already in use
+   - `WEB_PORT` if host port `3000` is already in use
    - `PUBLIC_API_URL`
    - `CORS_ORIGIN`
 
@@ -78,6 +79,39 @@ PUBLIC_API_URL=https://your-covey-api-host.example
 ```
 
 Do not expose Postgres directly to the internet.
+
+Example Caddy site using one HTTPS hostname and routing API traffic under `/api`:
+
+```caddyfile
+covey.example.com {
+  tls internal
+
+  handle_path /api/* {
+    reverse_proxy SERVER_IP:API_HOST_PORT
+  }
+
+  handle {
+    reverse_proxy SERVER_IP:WEB_PORT
+  }
+}
+```
+
+With that shape, rebuild the web app with these values:
+
+```env
+PUBLIC_API_URL=https://covey.example.com/api
+CORS_ORIGIN=https://covey.example.com
+COOKIE_SECURE=true
+```
+
+If the page loads but says "API offline", check the API from the same machine running Caddy:
+
+```sh
+curl -i http://SERVER_IP:API_HOST_PORT/health
+```
+
+If that works but the browser still shows offline, `PUBLIC_API_URL` was probably built with the
+wrong browser-facing URL. Update `.env` and rebuild the web container.
 
 ## Backups
 
@@ -248,6 +282,7 @@ images instead.
 
 - `.env` has real passwords and a real `SESSION_SECRET`.
 - `PUBLIC_API_URL` and `CORS_ORIGIN` match the URL used in the browser.
+- `API_HOST_PORT` maps to the API container's `API_PORT`; leave `API_PORT` at `8080` unless you have a specific container-level reason to change it.
 - `COOKIE_SECURE=true` if served through HTTPS.
 - Postgres is not exposed publicly.
 - Backup scheduler is configured in Settings.

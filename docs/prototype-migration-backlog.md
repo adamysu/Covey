@@ -73,13 +73,14 @@ When a slice is completed, update this backlog before moving to the next one.
    - [x] Backup scheduler
    - [x] Audit/history page
    - [x] Custom tasks with calendar view and dismiss/complete history
-   - [ ] External calendar sync/iCal export for reminders and optional chores
-   - [ ] Bird and feed photos with storage, thumbnails, and permissions
+   - [x] Bird and feed photos with storage, circular profile-style thumbnails, and permissions
+   - [x] Health records for observations, medications, treatments, quarantine, and follow-up alerts
+   - [x] Reporting page with filterable CSV exports
+   - [x] Sales/revenue tracking for eggs, fertile eggs, birds, meat, and mating-period outcomes
+   - [x] External calendar sync/iCal export for reminders and optional chores
    - [ ] Bird variety/breed type profiles with per-type targets for process age, weight, egg goals, and breeder selection
-   - [ ] Health records for observations, medications, treatments, quarantine, and follow-up alerts
-   - [ ] Reporting page with visualized and printable reports
+   - [ ] Printable report layouts and saved report presets
    - [ ] CSV export/import helpers for common tables
-   - [ ] Sales/revenue tracking for eggs, fertile eggs, birds, meat, and mating-period outcomes
    - [ ] Inventory beyond feed
    - [ ] Breeding decision simulator
 
@@ -129,4 +130,4 @@ When a slice is completed, update this backlog before moving to the next one.
 
 ## Next Immediate Slice
 
-External calendar sync/iCal export for reminders and optional chores: export due work items for Google, Apple, and other calendar apps without forcing account-level calendar integration yet.
+Bird variety/breed type profiles: add per-type targets for process age, process weight, egg goals, and breeder selection so recommendations can move beyond one global Coturnix target.
