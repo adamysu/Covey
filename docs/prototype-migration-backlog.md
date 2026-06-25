@@ -78,7 +78,7 @@ When a slice is completed, update this backlog before moving to the next one.
    - [x] Reporting page with filterable CSV exports
    - [x] Sales/revenue tracking for eggs, fertile eggs, birds, meat, and mating-period outcomes
    - [x] External calendar sync/iCal export for reminders and optional chores
-   - [ ] Bird variety/breed type profiles with per-type targets for process age, weight, egg goals, and breeder selection
+   - [x] Bird variety/breed type profiles with per-type targets for process age, weight, egg goals, and breeder selection
    - [ ] Printable report layouts and saved report presets
    - [ ] CSV export/import helpers for common tables
    - [ ] Inventory beyond feed
@@ -130,4 +130,4 @@ When a slice is completed, update this backlog before moving to the next one.
 
 ## Next Immediate Slice
 
-Bird variety/breed type profiles: add per-type targets for process age, process weight, egg goals, and breeder selection so recommendations can move beyond one global Coturnix target.
+Printable report layouts and saved report presets: make report outputs easier to save, print, and repeat without rebuilding filters every time.

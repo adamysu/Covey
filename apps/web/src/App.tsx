@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 
 const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
@@ -103,6 +103,7 @@ type Bird = {
   id: string;
   name: string | null;
   band: string | null;
+  bird_type: string | null;
   sex: BirdSex;
   status: BirdStatus;
   hatch_batch_id: string | null;
@@ -337,6 +338,7 @@ type SetupStep = "homestead" | "coops" | "birds" | "finish";
 type SortDirection = "asc" | "desc";
 type BirdColumnKey =
   | "sex"
+  | "type"
   | "status"
   | "coop"
   | "hatchDate"
@@ -413,6 +415,13 @@ type WorkItem = {
   section: DashboardSection;
   dueDate?: string | null;
   kind?: "todo" | "recommendation" | "custom";
+};
+
+type BirdTypeProfile = {
+  name: string;
+  minProcessAgeWeeks: number | null;
+  targetLiveWeightOz: number | null;
+  eggGoalPerWeek: number | null;
 };
 
 type CustomWorkItem = {
@@ -813,6 +822,7 @@ function homesteadSettingsPayload(form: HTMLFormElement, extraPreferences: Recor
     "requireMfaForKeepers",
     "preferCalm",
     "weighWeeks",
+    "birdTypeProfiles",
     "defaultBrooderCoop",
     "autoCreateChickRecords",
     "defaultIncubatorLocation"
@@ -1019,6 +1029,57 @@ function preferenceNumber(homestead: Homestead, key: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+const defaultBirdTypeProfiles = [
+  "Standard Coturnix | 8 | 8 | 5",
+  "Jumbo Coturnix | 8 | 10 | 5",
+  "Celadon | 8 | 8 | 5"
+].join("\n");
+
+function parseBirdTypeProfiles(homestead: Homestead | undefined): BirdTypeProfile[] {
+  const raw = String(homestead?.preferences.birdTypeProfiles ?? defaultBirdTypeProfiles);
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name, minAge, targetWeight, eggGoal] = line.split("|").map((part) => part.trim());
+      if (!name) return null;
+      const minProcessAgeWeeks = Number(minAge);
+      const targetLiveWeightOz = Number(targetWeight);
+      const eggGoalPerWeek = Number(eggGoal);
+      return {
+        name,
+        minProcessAgeWeeks: Number.isFinite(minProcessAgeWeeks) ? minProcessAgeWeeks : null,
+        targetLiveWeightOz: Number.isFinite(targetLiveWeightOz) ? targetLiveWeightOz : null,
+        eggGoalPerWeek: Number.isFinite(eggGoalPerWeek) ? eggGoalPerWeek : null
+      };
+    })
+    .filter((profile): profile is BirdTypeProfile => Boolean(profile));
+}
+
+function birdTypeOptions(birds: Bird[], homestead: Homestead | undefined) {
+  const names = new Set<string>();
+  for (const profile of parseBirdTypeProfiles(homestead)) names.add(profile.name);
+  for (const bird of birds) {
+    if (bird.bird_type?.trim()) names.add(bird.bird_type.trim());
+  }
+  return Array.from(names).sort((a, b) => compareValues(a, b));
+}
+
+function birdTypeProfileFor(bird: Bird, homestead: Homestead | undefined) {
+  const birdType = bird.bird_type?.trim().toLowerCase();
+  if (!birdType) return null;
+  return parseBirdTypeProfiles(homestead).find((profile) => profile.name.toLowerCase() === birdType) ?? null;
+}
+
+function birdTargetLiveWeightOz(bird: Bird, homestead: Homestead) {
+  return birdTypeProfileFor(bird, homestead)?.targetLiveWeightOz ?? preferenceNumber(homestead, "targetLiveWeightOz", 8);
+}
+
+function birdMinProcessAgeWeeks(bird: Bird, homestead: Homestead) {
+  return birdTypeProfileFor(bird, homestead)?.minProcessAgeWeeks ?? preferenceNumber(homestead, "minProcessAgeWeeks", 8);
+}
+
 function eggLogValue(log: EggLog, tableEggValue: number) {
   return numberValue(log.quantity) * tableEggValue;
 }
@@ -1173,7 +1234,8 @@ function dateStatusLabel(dateValue: string | null | undefined) {
 }
 
 function parseWeighWeeks(homestead: Homestead) {
-  const raw = String(homestead.preferences.weighWeeks ?? "1, 2, 4, 6, 8");
+  const raw = String(homestead.preferences.weighWeeks ?? "1, 2, 4, 6, 8").trim();
+  if (!raw) return [];
   return raw
     .split(",")
     .map((value) => Number(value.trim()))
@@ -1277,8 +1339,6 @@ function buildRecommendationItems({
 }) {
   const activeBirds = birds.filter((bird) => bird.status === "ACTIVE");
   const targetHens = preferenceNumber(homestead, "hensPerRooster", 4);
-  const targetLiveWeightOz = preferenceNumber(homestead, "targetLiveWeightOz", 8);
-  const minProcessAgeWeeks = preferenceNumber(homestead, "minProcessAgeWeeks", 8);
   const today = dateKeyDaysAgo(0);
   const openSireIds = new Set(
     matingPeriods
@@ -1336,10 +1396,13 @@ function buildRecommendationItems({
   const activeMales = activeBirds.filter((bird) => bird.sex === "MALE");
   const processingCandidates = activeMales.filter((bird) => {
     const weeks = ageWeeks(bird);
+    const minProcessAgeWeeks = birdMinProcessAgeWeeks(bird, homestead);
+    const targetLiveWeightOz = birdTargetLiveWeightOz(bird, homestead);
     return (
       !openSireIds.has(bird.id) &&
-      numberValue(bird.current_weight_oz) >= targetLiveWeightOz &&
-      (weeks == null || weeks >= minProcessAgeWeeks)
+      weeks != null &&
+      weeks >= minProcessAgeWeeks &&
+      (!bird.current_weight_oz || numberValue(bird.current_weight_oz) >= targetLiveWeightOz)
     );
   });
   if (processingCandidates.length) {
@@ -1348,24 +1411,8 @@ function buildRecommendationItems({
       title: "Review processing candidates",
       detail: `${processingCandidates.length} extra male ${
         processingCandidates.length === 1 ? "bird is" : "birds are"
-      } at or above ${targetLiveWeightOz} oz and old enough for the ${minProcessAgeWeeks} week processing target.${describeBirds(processingCandidates)}`,
+      } at or past its type-based processing age. Weights can refine this later, but are not required.${describeBirds(processingCandidates)}`,
       priority: "high",
-      section: "flock"
-    });
-  }
-
-  const missingWeightMales = activeMales.filter((bird) => {
-    const weeks = ageWeeks(bird);
-    return !openSireIds.has(bird.id) && bird.current_weight_oz == null && weeks != null && weeks >= minProcessAgeWeeks;
-  });
-  if (missingWeightMales.length) {
-    items.push({
-      id: "processing-missing-weight",
-      title: "Weigh extra males for processing decisions",
-      detail: `${missingWeightMales.length} extra male ${
-        missingWeightMales.length === 1 ? "bird is" : "birds are"
-      } past the ${minProcessAgeWeeks} week processing age but missing a current weight.${describeBirds(missingWeightMales)}`,
-      priority: "medium",
       section: "flock"
     });
   }
@@ -1418,11 +1465,12 @@ function buildRecommendationItems({
 
   const breederCandidates = activeBirds.filter((bird) => {
     const weeks = ageWeeks(bird);
+    const targetLiveWeightOz = birdTargetLiveWeightOz(bird, homestead);
     return (
       bird.sex === "FEMALE" &&
       bird.breeding_line_id &&
-      numberValue(bird.current_weight_oz) >= targetLiveWeightOz * 0.85 &&
-      (weeks == null || weeks >= minProcessAgeWeeks)
+      (bird.current_weight_oz == null || numberValue(bird.current_weight_oz) >= targetLiveWeightOz * 0.85) &&
+      (weeks == null || weeks >= birdMinProcessAgeWeeks(bird, homestead))
     );
   });
   if (breederCandidates.length) {
@@ -1431,7 +1479,7 @@ function buildRecommendationItems({
       title: "Review future breeder candidates",
       detail: `${breederCandidates.length} active female ${
         breederCandidates.length === 1 ? "bird has" : "birds have"
-      } line context and mature weight. Compare egg output, hatch results, and temperament before keeping replacements.${describeBirds(breederCandidates)}`,
+      } line context and appears mature by age/type context. Compare egg output, hatch results, and temperament before keeping replacements.${describeBirds(breederCandidates)}`,
       priority: "low",
       section: "breeding"
     });
@@ -2335,6 +2383,7 @@ export function App() {
     return {
       name: fieldValue(form, "name") || null,
       band: fieldValue(form, "band") || null,
+      birdType: fieldValue(form, "birdType") || null,
       sex: fieldValue(form, "sex"),
       status: fieldValue(form, "status"),
       coopId: fieldValue(form, "coopId") || null,
@@ -2403,7 +2452,7 @@ export function App() {
 
   async function handleBulkUpdateBirds(
     ids: string[],
-    patch: Partial<Pick<Bird, "status">> & { coopId?: string | null }
+    patch: Partial<Pick<Bird, "status">> & { coopId?: string | null; birdType?: string | null }
   ) {
     if (!ids.length) return;
     setBusy(true);
@@ -3537,9 +3586,9 @@ export function App() {
             onUpdateCoop={handleUpdateCoop}
           />
         ) : (
-	          <Dashboard
+            <Dashboard
         auditEvents={auditEvents}
-	        busy={busy}
+          busy={busy}
         birds={birds}
         breedingLines={breedingLines}
         coops={coops}
@@ -3603,14 +3652,14 @@ export function App() {
         onDeleteIncubation={handleDeleteIncubation}
         onDeleteMatingPeriod={handleDeleteMatingPeriod}
         onDisableManagedUser={handleDisableManagedUser}
-	        onDeleteWeightLog={handleDeleteWeightLog}
-	        onDisableMfa={handleDisableMfa}
-	        onEnableMfa={handleEnableMfa}
-	        onExportData={handleExportData}
-	        onImportBundle={handleImportBundle}
-	        onImportData={handleImportData}
+          onDeleteWeightLog={handleDeleteWeightLog}
+          onDisableMfa={handleDisableMfa}
+          onEnableMfa={handleEnableMfa}
+          onExportData={handleExportData}
+          onImportBundle={handleImportBundle}
+          onImportData={handleImportData}
         onLoadAuditEvents={loadAuditEvents}
-	        onLogout={handleLogout}
+          onLogout={handleLogout}
         onSettings={handleSettings}
         onStartMfaSetup={handleStartMfaSetup}
         onThemeModeChange={handleThemeModeChange}
@@ -4204,7 +4253,7 @@ function Dashboard({
   onBulkDeleteIncubations: (ids: string[]) => Promise<void>;
   onBulkDeleteBreedingLines: (ids: string[]) => Promise<void>;
   onBulkDeleteMatingPeriods: (ids: string[]) => Promise<void>;
-  onBulkUpdateBirds: (ids: string[], patch: Partial<Pick<Bird, "status">> & { coopId?: string | null }) => Promise<void>;
+  onBulkUpdateBirds: (ids: string[], patch: Partial<Pick<Bird, "status">> & { coopId?: string | null; birdType?: string | null }) => Promise<void>;
   onBulkUpdateCoops: (ids: string[], patch: Partial<Pick<Coop, "type" | "capacity">>) => Promise<void>;
   onBulkUpdateEggLogs: (ids: string[], patch: Record<string, unknown>) => Promise<void>;
   onBulkUpdateFeedInventoryEvents: (ids: string[], patch: Record<string, unknown>) => Promise<void>;
@@ -6116,13 +6165,13 @@ function IncubationManager({
                     />
                   </label>
                   <div className="cycle-card-head">
-	                    <div>
-	                      <strong>{cycle.label}</strong>
-	                      <p>
+                      <div>
+                        <strong>{cycle.label}</strong>
+                        <p>
                           {cycle.eggs_set} eggs set · {dateStatusLabel(cycle.expected_hatch_date)} hatch
                           {cycle.mating_period_label ? ` · ${cycle.breeding_line_name}: ${cycle.mating_period_label}` : ""}
                         </p>
-	                    </div>
+                      </div>
                     <span className="row-open-hint">Open</span>
                   </div>
                   <div className="cycle-timeline">
@@ -6135,11 +6184,11 @@ function IncubationManager({
                     <span>Hatch {displayDate(cycle.expected_hatch_date)}</span>
                   </div>
                   <div className="pill-row">
-	                    <span>{rateLabel(fertileRate(cycle.eggs_set, cycle.fertile_eggs))} fertile</span>
-	                    <span>{rateLabel(fertileRate(cycle.eggs_set, cycle.hatched_count))} hatch</span>
+                      <span>{rateLabel(fertileRate(cycle.eggs_set, cycle.fertile_eggs))} fertile</span>
+                      <span>{rateLabel(fertileRate(cycle.eggs_set, cycle.hatched_count))} hatch</span>
                     <span>{cycle.hatch_batch_id ? "Hatch batch created" : "No hatch batch yet"}</span>
-	                    <span>{cycle.notes || "No notes"}</span>
-	                  </div>
+                      <span>{cycle.notes || "No notes"}</span>
+                    </div>
                 </article>
               )
             )
@@ -6186,7 +6235,7 @@ function IncubationManager({
           )}
         </div>
       </section>
-	    </section>
+      </section>
   );
 }
 
@@ -8156,6 +8205,21 @@ function SettingsManager({
         </div>
 
         <div className={`settings-grid settings-panel ${tab === "flock" ? "active" : ""}`}>
+          <article className="settings-card wide-settings-card">
+            <p className="eyebrow">Bird types</p>
+            <h3>Variety profiles</h3>
+            <p className="muted compact-copy">
+              One type per line: name | processing age weeks | target live weight oz | egg goal per week. Weight targets are optional context, not required for Covey to stay useful.
+            </p>
+            <label>
+              Type profiles
+              <textarea
+                name="birdTypeProfiles"
+                defaultValue={displayPreference(homestead, "birdTypeProfiles", defaultBirdTypeProfiles)}
+                rows={5}
+              />
+            </label>
+          </article>
           <article className="settings-card">
             <p className="eyebrow">Breeding balance</p>
             <h3>Flock ratios</h3>
@@ -8218,6 +8282,7 @@ function SettingsManager({
           <article className="settings-card">
             <p className="eyebrow">Growth tracking</p>
             <h3>Weigh-in checkpoints</h3>
+            <p className="muted compact-copy">Leave this blank to turn off automatic weigh-in reminders.</p>
             <label>
               Reminder ages in weeks
               <input name="weighWeeks" defaultValue={displayPreference(homestead, "weighWeeks", "1, 2, 4, 6, 8")} />
@@ -10739,20 +10804,20 @@ function WorkList({
                 <strong>{item.title}</strong>
                 <p>{item.detail}</p>
               </div>
-	              <div className="work-actions">
-	                <button className="secondary" type="button" onClick={() => onNavigate(item.section)}>
-	                  Open {sectionTitle(item.section)}
-	                </button>
+                <div className="work-actions">
+                  <button className="secondary" type="button" onClick={() => onNavigate(item.section)}>
+                    Open {sectionTitle(item.section)}
+                  </button>
                   {item.kind === "custom" && onCompleteCustom ? (
                     <button type="button" onClick={() => onCompleteCustom(item.id)}>
                       Complete
                     </button>
                   ) : null}
-	                {onDismiss ? (
-	                  <button className="secondary" type="button" onClick={() => onDismiss(item.id)}>
-	                    Dismiss
-	                  </button>
-	                ) : null}
+                  {onDismiss ? (
+                    <button className="secondary" type="button" onClick={() => onDismiss(item.id)}>
+                      Dismiss
+                    </button>
+                  ) : null}
               </div>
             </article>
           ))}
@@ -10767,8 +10832,8 @@ function WorkList({
               Restore {dismissedCount} dismissed
             </button>
           ) : null}
-	        </div>
-	      )}
+          </div>
+        )}
       {customItems.some((item) => item.completedAt) && onRestoreCustom ? (
         <section className="subpanel completed-work">
           <p className="eyebrow">Completed</p>
@@ -10953,14 +11018,15 @@ function WorkCalendar({
             System reminders, recommendations with dates, and custom keeper tasks are grouped by due date.
           </p>
         </div>
-        <button
-          className="secondary"
-          disabled={!scopedItems.length}
-          type="button"
-          onClick={() => downloadIcs(`covey-calendar-${visibleMonth}.ics`, scopedItems)}
-        >
-          Export iCal
-        </button>
+          <button
+            className="secondary"
+            disabled={!scopedItems.length}
+            title={scopedItems.length ? "Download the filtered calendar as an .ics file" : "No dated items match the current filters"}
+            type="button"
+            onClick={() => downloadIcs(`covey-calendar-${visibleMonth}.ics`, scopedItems)}
+          >
+            {scopedItems.length ? "Export iCal" : "No items to export"}
+          </button>
       </div>
 
       <CustomTaskForm onCreateCustom={onCreateCustom} />
@@ -12083,10 +12149,11 @@ function ReportsManager({
     const meatValue = ["PROCESSED", "CULLED"].includes(bird.status) && bird.current_weight_oz ? numberValue(bird.current_weight_oz) * meatValuePerOz : 0;
     const trackedReturn = birdEggValue + meatValue + birdSalesRevenue;
 
-    return {
-      Bird: birdLabel(bird),
-      Sex: formatBirdSex(bird.sex),
-      Status: formatBirdStatus(bird.status),
+      return {
+        Bird: birdLabel(bird),
+        Type: bird.bird_type || "",
+        Sex: formatBirdSex(bird.sex),
+        Status: formatBirdStatus(bird.status),
       Coop: bird.coop_name || "",
       Line: bird.breeding_line_name || hatchBatch?.breeding_line_name || "",
       "Hatch date": displayDate(bird.hatch_date, ""),
@@ -12470,9 +12537,10 @@ const birdColumnDefs: Array<{
   label: string;
   value: (bird: Bird, feedLogs: FeedLog[]) => string | number;
   render: (bird: Bird, feedLogs: FeedLog[]) => string;
-}> = [
-  { key: "sex", label: "Sex", value: (bird) => bird.sex, render: (bird) => formatBirdSex(bird.sex) },
-  {
+  }> = [
+    { key: "sex", label: "Sex", value: (bird) => bird.sex, render: (bird) => formatBirdSex(bird.sex) },
+    { key: "type", label: "Type", value: (bird) => bird.bird_type ?? "", render: (bird) => bird.bird_type || "Unspecified" },
+    {
     key: "status",
     label: "Status",
     value: (bird) => bird.status,
@@ -12874,19 +12942,19 @@ function CoopManager({
                       onChange={() => toggleCoopSelection(coop.id)}
                     />
                   </label>
-	                  <div>
-	                    <strong>
+                    <div>
+                      <strong>
                         {coop.name}
                         {coop.has_camera ? <span className="camera-name-badge" title="Camera enabled"><span className="camera-icon" /></span> : null}
                       </strong>
-	                    <p>{coop.notes || "No notes yet."}</p>
-	                  </div>
+                      <p>{coop.notes || "No notes yet."}</p>
+                    </div>
                   <span>
                     <span className={`status-chip ${coop.type.toLowerCase()}`}>{formatCoopType(coop.type)}</span>
                   </span>
                   <span>{coop.capacity ? `${coop.capacity} birds` : "No capacity"}</span>
-	                  <span>{numberValue(coop.active_bird_count)} active / {numberValue(coop.bird_count)} total</span>
-	                  <span className="row-open-hint">Open details</span>
+                    <span>{numberValue(coop.active_bird_count)} active / {numberValue(coop.bird_count)} total</span>
+                    <span className="row-open-hint">Open details</span>
                 </div>
               )
             ) : (
@@ -13400,7 +13468,7 @@ function BirdManager({
   onDeletePhoto?: (id: string) => void;
   onDeleteWeightLog?: (id: string) => void;
   onBulkDeleteBirds?: (ids: string[]) => Promise<void>;
-  onBulkUpdateBirds?: (ids: string[], patch: Partial<Pick<Bird, "status">> & { coopId?: string | null }) => Promise<void>;
+  onBulkUpdateBirds?: (ids: string[], patch: Partial<Pick<Bird, "status">> & { coopId?: string | null; birdType?: string | null }) => Promise<void>;
   onCreatePhoto?: (event: FormEvent<HTMLFormElement>) => void;
   onOpenRecord?: (target: RecordTarget) => void;
   onRecordTargetHandled?: () => void;
@@ -13409,15 +13477,17 @@ function BirdManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedBirdId, setSelectedBirdId] = useState<string | null>(null);
   const [selectedBirdIds, setSelectedBirdIds] = useState<string[]>([]);
-  const [bulkBirdEditing, setBulkBirdEditing] = useState(false);
-  const [bulkBirdStatus, setBulkBirdStatus] = useState<BirdStatus | "NO_CHANGE">("NO_CHANGE");
-  const [bulkBirdCoopId, setBulkBirdCoopId] = useState<string>("NO_CHANGE");
+    const [bulkBirdEditing, setBulkBirdEditing] = useState(false);
+    const [bulkBirdStatus, setBulkBirdStatus] = useState<BirdStatus | "NO_CHANGE">("NO_CHANGE");
+    const [bulkBirdCoopId, setBulkBirdCoopId] = useState<string>("NO_CHANGE");
+    const [bulkBirdType, setBulkBirdType] = useState("");
   const defaultBirdView = String(homestead?.preferences.defaultBirdView ?? "active");
-  const [statusFilter, setStatusFilter] = useState<string>(
-    defaultBirdView === "inactive" ? "inactive" : defaultBirdView === "all" ? "all" : "ACTIVE"
-  );
-  const [sexFilter, setSexFilter] = useState<string>("all");
-  const [coopFilter, setCoopFilter] = useState<string>("all");
+    const [statusFilter, setStatusFilter] = useState<string>(
+      defaultBirdView === "inactive" ? "inactive" : defaultBirdView === "all" ? "all" : "ACTIVE"
+    );
+    const [sexFilter, setSexFilter] = useState<string>("all");
+    const [coopFilter, setCoopFilter] = useState<string>("all");
+    const [typeFilter, setTypeFilter] = useState<string>("all");
 
   useEffect(() => {
     setStatusFilter(defaultBirdView === "inactive" ? "inactive" : defaultBirdView === "all" ? "all" : "ACTIVE");
@@ -13429,10 +13499,11 @@ function BirdManager({
     onRecordTargetHandled?.();
   }, [onRecordTargetHandled, recordTarget]);
 
-  const activeCount = birds.filter((bird) => bird.status === "ACTIVE").length;
-  const selectedBird = birds.find((bird) => bird.id === selectedBirdId) ?? null;
-  const [visibleColumns, setVisibleColumns] = useState<BirdColumnKey[]>(() => {
-    const fallback: BirdColumnKey[] = ["sex", "status", "coop", "age", "weight"];
+    const activeCount = birds.filter((bird) => bird.status === "ACTIVE").length;
+    const selectedBird = birds.find((bird) => bird.id === selectedBirdId) ?? null;
+    const typeOptions = birdTypeOptions(birds, homestead);
+    const [visibleColumns, setVisibleColumns] = useState<BirdColumnKey[]>(() => {
+      const fallback: BirdColumnKey[] = ["sex", "type", "status", "coop", "age"];
     try {
       const saved = JSON.parse(localStorage.getItem("coveyFlockColumns") ?? "[]") as BirdColumnKey[];
       const valid = saved.filter((column) => birdColumnDefs.some((definition) => definition.key === column));
@@ -13449,10 +13520,11 @@ function BirdManager({
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "inactive" ? bird.status !== "ACTIVE" : bird.status === statusFilter);
-    const matchesSex = sexFilter === "all" || bird.sex === sexFilter;
-    const matchesCoop = coopFilter === "all" || (coopFilter === "none" ? !bird.coop_id : bird.coop_id === coopFilter);
-    return matchesStatus && matchesSex && matchesCoop;
-  });
+      const matchesSex = sexFilter === "all" || bird.sex === sexFilter;
+      const matchesCoop = coopFilter === "all" || (coopFilter === "none" ? !bird.coop_id : bird.coop_id === coopFilter);
+      const matchesType = typeFilter === "all" || (typeFilter === "none" ? !bird.bird_type : bird.bird_type === typeFilter);
+      return matchesStatus && matchesSex && matchesCoop && matchesType;
+    });
   const sortedBirds = [...filteredBirds].sort((a, b) => {
     const getValue = (bird: Bird) => {
       if (sort.key === "bird") return bird.band || bird.name || "Unbanded bird";
@@ -13487,15 +13559,17 @@ function BirdManager({
   async function applyBulkBirdEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!onBulkUpdateBirds || !selectedBirdIds.length) return;
-    const patch: Partial<Pick<Bird, "status">> & { coopId?: string | null } = {};
-    if (bulkBirdStatus !== "NO_CHANGE") patch.status = bulkBirdStatus;
-    if (bulkBirdCoopId !== "NO_CHANGE") patch.coopId = bulkBirdCoopId === "none" ? null : bulkBirdCoopId;
+      const patch: Partial<Pick<Bird, "status">> & { coopId?: string | null; birdType?: string | null } = {};
+      if (bulkBirdStatus !== "NO_CHANGE") patch.status = bulkBirdStatus;
+      if (bulkBirdCoopId !== "NO_CHANGE") patch.coopId = bulkBirdCoopId === "none" ? null : bulkBirdCoopId;
+      if (bulkBirdType.trim()) patch.birdType = bulkBirdType.trim();
     if (!Object.keys(patch).length) return;
     await onBulkUpdateBirds(selectedBirdIds, patch);
     setSelectedBirdIds([]);
-    setBulkBirdEditing(false);
-    setBulkBirdStatus("NO_CHANGE");
-    setBulkBirdCoopId("NO_CHANGE");
+      setBulkBirdEditing(false);
+      setBulkBirdStatus("NO_CHANGE");
+      setBulkBirdCoopId("NO_CHANGE");
+      setBulkBirdType("");
   }
 
   async function applyBulkBirdDelete() {
@@ -13572,13 +13646,17 @@ function BirdManager({
             Name, optional
             <input name="name" placeholder="Optional nickname" />
           </label>
-          <label>
-            Band
-            <input name="band" placeholder="purple-3" />
-          </label>
-          <label>
-            Sex
-            <BirdSexSelect />
+            <label>
+              Band
+              <input name="band" placeholder="purple-3" />
+            </label>
+            <label>
+              Type / variety
+              <BirdTypeInput name="birdType" options={typeOptions} />
+            </label>
+            <label>
+              Sex
+              <BirdSexSelect />
           </label>
           <label>
             Status
@@ -13639,9 +13717,9 @@ function BirdManager({
                       ))}
                     </select>
                   </label>
-                  <label>
-                    Coop
-                    <select value={coopFilter} onChange={(event) => setCoopFilter(event.target.value)}>
+                    <label>
+                      Coop
+                      <select value={coopFilter} onChange={(event) => setCoopFilter(event.target.value)}>
                       <option value="all">All coops</option>
                       <option value="none">No coop</option>
                       {coops.map((coop) => (
@@ -13649,9 +13727,21 @@ function BirdManager({
                           {coop.name}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                </div>
+                      </select>
+                    </label>
+                    <label>
+                      Type
+                      <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                        <option value="all">All types</option>
+                        <option value="none">No type</option>
+                        {typeOptions.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                 <details className="column-picker">
                   <summary>Columns</summary>
                   <div className="column-options">
@@ -13733,12 +13823,21 @@ function BirdManager({
                           {coop.name}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <div className="row-actions">
-                    <button
-                      disabled={busy || (bulkBirdStatus === "NO_CHANGE" && bulkBirdCoopId === "NO_CHANGE")}
-                      type="submit"
+                      </select>
+                    </label>
+                    <label>
+                      Type
+                      <BirdTypeInput
+                        defaultValue={bulkBirdType}
+                        name="bulkBirdType"
+                        options={typeOptions}
+                        onChange={setBulkBirdType}
+                      />
+                    </label>
+                    <div className="row-actions">
+                      <button
+                        disabled={busy || (bulkBirdStatus === "NO_CHANGE" && bulkBirdCoopId === "NO_CHANGE" && !bulkBirdType.trim())}
+                        type="submit"
                     >
                       Apply changes
                     </button>
@@ -13789,12 +13888,16 @@ function BirdManager({
                         Name
                         <input name="name" defaultValue={bird.name ?? ""} />
                       </label>
-                      <label>
-                        Band
-                        <input name="band" defaultValue={bird.band ?? ""} />
-                      </label>
-                      <label>
-                        Sex
+                        <label>
+                          Band
+                          <input name="band" defaultValue={bird.band ?? ""} />
+                        </label>
+                        <label>
+                          Type
+                          <BirdTypeInput defaultValue={bird.bird_type ?? ""} name="birdType" options={typeOptions} />
+                        </label>
+                        <label>
+                          Sex
                         <BirdSexSelect defaultValue={bird.sex} />
                       </label>
                       <label>
@@ -13940,9 +14043,13 @@ function BirdDetail({
   const feedCost = estimatedBirdFeedCost(bird, feedLogs);
   const tableEggValue = homestead ? preferenceNumber(homestead, "valueTableEgg", 0.35) : 0.35;
   const meatValuePerOz = homestead ? preferenceNumber(homestead, "valueMeatPerOz", 0.5) : 0.5;
-  const roiStrongReturn = homestead ? preferenceNumber(homestead, "roiStrongReturn", 10) : 10;
-  const roiPositiveReturn = homestead ? preferenceNumber(homestead, "roiPositiveReturn", 0) : 0;
-  const currentAgeDays = ageDaysOn(bird.hatch_date, dateKeyDaysAgo(0));
+    const roiStrongReturn = homestead ? preferenceNumber(homestead, "roiStrongReturn", 10) : 10;
+    const roiPositiveReturn = homestead ? preferenceNumber(homestead, "roiPositiveReturn", 0) : 0;
+    const typeOptions = birdTypeOptions(birds, homestead);
+    const typeProfile = birdTypeProfileFor(bird, homestead);
+    const targetLiveWeight = homestead ? birdTargetLiveWeightOz(bird, homestead) : 8;
+    const minProcessAge = homestead ? birdMinProcessAgeWeeks(bird, homestead) : 8;
+    const currentAgeDays = ageDaysOn(bird.hatch_date, dateKeyDaysAgo(0));
   const birdEggLogs = eggLogs.filter((log) => log.bird_id === bird.id);
   const eggValue = birdEggLogs.reduce((total, log) => total + eggLogValue(log, tableEggValue), 0);
   const meatValue =
@@ -14041,9 +14148,9 @@ function BirdDetail({
           <div>
             <p className="eyebrow">Bird detail</p>
             <h2>{bird.band || bird.name || "Unbanded bird"}</h2>
-            <p className="muted">
-              {formatBirdSex(bird.sex)} · {formatBirdStatus(bird.status)} · {bird.coop_name || "No coop"}
-            </p>
+              <p className="muted">
+                {formatBirdSex(bird.sex)} · {formatBirdStatus(bird.status)} · {bird.bird_type || "No type"} · {bird.coop_name || "No coop"}
+              </p>
           </div>
         </div>
         <div className="detail-header-actions">
@@ -14084,9 +14191,18 @@ function BirdDetail({
           <strong>{bird.current_weight_oz ? `${bird.current_weight_oz} oz` : "None"}</strong>
           <span>latest recorded weight</span>
         </article>
-        <article className="metric-card">
-          <p className="eyebrow">Feed estimate</p>
-          <strong>{money(feedCost)}</strong>
+          <article className="metric-card">
+            <p className="eyebrow">Type</p>
+            <strong className={!bird.bird_type ? "metric-soft-value" : ""}>{bird.bird_type || "Unspecified"}</strong>
+            <span>
+              {typeProfile
+                ? `${minProcessAge} week age target · ${targetLiveWeight} oz weight context`
+                : "uses global flock targets"}
+            </span>
+          </article>
+          <article className="metric-card">
+            <p className="eyebrow">Feed estimate</p>
+            <strong>{money(feedCost)}</strong>
           <span>based on coop top-offs</span>
         </article>
         <article className="metric-card">
@@ -14398,12 +14514,16 @@ function BirdDetail({
             Name
             <input name="name" defaultValue={bird.name ?? ""} />
           </label>
-          <label>
-            Band
-            <input name="band" defaultValue={bird.band ?? ""} />
-          </label>
-          <label>
-            Sex
+            <label>
+              Band
+              <input name="band" defaultValue={bird.band ?? ""} />
+            </label>
+            <label>
+              Type / variety
+              <BirdTypeInput defaultValue={bird.bird_type ?? ""} name="birdType" options={typeOptions} />
+            </label>
+            <label>
+              Sex
             <BirdSexSelect defaultValue={bird.sex} />
           </label>
           <label>
@@ -14461,6 +14581,36 @@ const birdStatusOptions: Array<{ value: BirdStatus; label: string }> = [
   { value: "RETIRED", label: "Retired" },
   { value: "CULLED", label: "Culled" }
 ];
+
+function BirdTypeInput({
+  defaultValue = "",
+  name,
+  onChange,
+  options
+}: {
+  defaultValue?: string;
+  name: string;
+  onChange?: (value: string) => void;
+  options: string[];
+}) {
+  const listId = `${useId()}-${name}-bird-type-options`;
+  return (
+    <>
+      <input
+        name={name}
+        list={listId}
+        defaultValue={defaultValue}
+        placeholder="Standard Coturnix"
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+      <datalist id={listId}>
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    </>
+  );
+}
 
 const saleItemTypeOptions: Array<{ value: SaleItemType; label: string }> = [
   { value: "TABLE_EGGS", label: "Table eggs" },

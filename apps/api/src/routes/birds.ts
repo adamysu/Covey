@@ -9,6 +9,7 @@ const statusSchema = z.enum(["ACTIVE", "PROCESSED", "SOLD", "DIED", "RETIRED", "
 const birdInputSchema = z.object({
   name: z.string().max(120).nullable().optional(),
   band: z.string().max(120).nullable().optional(),
+  birdType: z.string().max(120).nullable().optional(),
   sex: sexSchema,
   status: statusSchema.default("ACTIVE"),
   coopId: z.string().uuid().nullable().optional(),
@@ -185,6 +186,7 @@ export async function birdRoutes(app: FastifyInstance) {
       `select birds.id,
               birds.name,
               birds.band,
+              birds.bird_type,
               birds.sex,
               birds.status,
               birds.hatch_batch_id,
@@ -222,9 +224,9 @@ export async function birdRoutes(app: FastifyInstance) {
       const result = await db.query(
         `insert into birds (
            homestead_id, name, band, sex, status, coop_id, hatch_date, processed_date,
-           current_weight_oz, notes
+           current_weight_oz, notes, bird_type
          )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          returning id`,
         [
           user.homestead_id,
@@ -236,7 +238,8 @@ export async function birdRoutes(app: FastifyInstance) {
           input.hatchDate ?? null,
           input.processedDate ?? null,
           input.currentWeightOz ?? null,
-          input.notes || null
+          input.notes || null,
+          input.birdType || null
         ]
       );
 
@@ -270,6 +273,7 @@ export async function birdRoutes(app: FastifyInstance) {
                 processed_date = case when $13 then $14 else processed_date end,
                 current_weight_oz = case when $15 then $16 else current_weight_oz end,
                 notes = case when $17 then $18 else notes end,
+                bird_type = case when $19 then $20 else bird_type end,
                 updated_at = now()
           where id = $1
             and homestead_id = $2
@@ -292,7 +296,9 @@ export async function birdRoutes(app: FastifyInstance) {
           Object.hasOwn(input, "currentWeightOz"),
           input.currentWeightOz ?? null,
           Object.hasOwn(input, "notes"),
-          input.notes || null
+          input.notes || null,
+          Object.hasOwn(input, "birdType"),
+          input.birdType || null
         ]
       );
 

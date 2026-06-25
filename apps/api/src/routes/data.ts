@@ -1225,10 +1225,10 @@ async function importData(user: SessionUser, data: unknown, options: RestoreOpti
       const status = upperAny(bird, ["status"], "ACTIVE");
       const result = await client.query(
         `insert into birds (
-           homestead_id, hatch_batch_id, breeding_line_id, coop_id, name, band, sex, status,
+           homestead_id, hatch_batch_id, breeding_line_id, coop_id, name, band, bird_type, sex, status,
            hatch_date, processed_date, current_weight_oz, dressed_weight_oz, temperament, breeder_rating, notes
          )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          returning id`,
         [
           user.homestead_id,
@@ -1237,6 +1237,7 @@ async function importData(user: SessionUser, data: unknown, options: RestoreOpti
           mapRef(bird, ["coop_id", "coopId"], maps.coops),
           nullableText(bird, ["name"]),
           nullableText(bird, ["band"]),
+          nullableText(bird, ["bird_type", "birdType", "variety"]),
           sex,
           status,
           dateAny(bird, ["hatch_date", "hatchDate"]),

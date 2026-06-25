@@ -19,6 +19,7 @@ services:
       - ./packages/db/migrations/009_feed_vendor/009_feed_vendor.sql:/docker-entrypoint-initdb.d/009_feed_vendor.sql:ro
       - ./packages/db/migrations/010_sales_and_health_records/010_sales_and_health_records.sql:/docker-entrypoint-initdb.d/010_sales_and_health_records.sql:ro
       - ./packages/db/migrations/011_photo_attachments/011_photo_attachments.sql:/docker-entrypoint-initdb.d/011_photo_attachments.sql:ro
+      - ./packages/db/migrations/012_bird_type_profiles/012_bird_type_profiles.sql:/docker-entrypoint-initdb.d/012_bird_type_profiles.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
