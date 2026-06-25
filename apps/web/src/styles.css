@@ -813,6 +813,28 @@ h2 {
   background: rgba(255, 252, 244, 0.58);
 }
 
+.card-list-table .cycle-list {
+  margin-top: 0;
+  padding: 16px;
+}
+
+.card-list-table .cycle-card:last-child {
+  margin-bottom: 0;
+}
+
+.value-card {
+  padding: 16px;
+}
+
+.camera-detail-card {
+  padding: 18px;
+}
+
+.card-form {
+  margin: 0;
+  padding: 16px;
+}
+
 .coop-list,
 .bird-list {
   display: grid;
@@ -910,6 +932,17 @@ h2 {
 
 .detail-page .dashboard-header {
   align-items: start;
+}
+
+.detail-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.detail-header-actions button {
+  width: auto;
 }
 
 .coop-row p,
@@ -2472,6 +2505,11 @@ h2 {
   margin-top: 18px;
 }
 
+.record-card-list {
+  margin-top: 0;
+  padding: 16px;
+}
+
 .source-summary article {
   display: flex;
   align-items: center;
@@ -2946,17 +2984,11 @@ h2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 14px;
-  margin: 22px 0;
-  border: 1px solid rgba(49, 65, 43, 0.12);
-  border-radius: 20px;
-  padding: 18px;
-  background: rgba(250, 245, 232, 0.58);
+  margin: 0;
 }
 
 .report-table-wrap {
   overflow-x: auto;
-  border: 1px solid rgba(49, 65, 43, 0.12);
-  border-radius: 20px;
   background: rgba(255, 252, 244, 0.62);
 }
 
@@ -3051,7 +3083,8 @@ h2 {
 .audit-list {
   display: grid;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 0;
+  padding: 16px;
 }
 
 .audit-card {
@@ -3588,6 +3621,234 @@ h2 {
   .settings-tab {
     flex: 1;
     padding: 9px 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-header,
+  .table-section-header,
+  .camera-card-header {
+    align-items: stretch;
+    display: grid;
+    gap: 14px;
+  }
+
+  .dashboard-header > *,
+  .table-section-header > *,
+  .camera-card-header > * {
+    min-width: 0;
+  }
+
+  .detail-header-actions,
+  .row-actions,
+  .camera-control-row,
+  .camera-selector-list,
+  .work-controls,
+  .bulk-actions,
+  .table-bulk-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .detail-header-actions button,
+  .row-actions button,
+  .camera-control-row button,
+  .bulk-actions button,
+  .table-bulk-actions button,
+  .work-controls button {
+    width: 100%;
+  }
+
+  .table-control-panel {
+    padding: 14px;
+  }
+
+  .table-card {
+    overflow-x: auto;
+  }
+
+  .metric-grid,
+  .metric-grid.embedded,
+  .detail-page > .metric-grid.embedded {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .metric-card {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .metric-card strong {
+    font-size: clamp(1.15rem, 8vw, 1.55rem);
+  }
+
+  .detail-title-with-avatar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .profile-photo-control,
+  .profile-photo-frame {
+    width: 82px;
+  }
+
+  .profile-photo-frame {
+    height: 82px;
+  }
+
+  .profile-photo-overlay {
+    font-size: 0.68rem;
+  }
+
+  .feed-form,
+  .egg-form,
+  .incubation-form,
+  .settings-grid,
+  .bird-form,
+  .bulk-edit-form,
+  .report-controls,
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feed-layout,
+  .compact-feed-layout,
+  .incubation-layout,
+  .egg-insights,
+  .user-settings-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .wide-field,
+  .bulk-edit-form .row-actions {
+    grid-column: auto;
+  }
+
+  .source-summary article,
+  .audit-card,
+  .work-card {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .source-summary article > button,
+  .audit-meta,
+  .work-card .row-actions {
+    justify-self: stretch;
+  }
+
+  .source-summary article > button,
+  .work-card .row-actions button {
+    width: 100%;
+  }
+
+  .growth-chart article,
+  .cohort-bar-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .growth-chart strong,
+  .cohort-bar-row b {
+    text-align: left;
+  }
+
+  .lineage-tree {
+    white-space: normal;
+  }
+
+  .lineage-level,
+  .lineage-parents {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-overview-grid,
+  .camera-overview-grid.grid-2,
+  .camera-overview-grid.grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-detail-card,
+  .value-card,
+  .card-form,
+  .record-card-list,
+  .card-list-table .cycle-list,
+  .audit-list {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-main {
+    padding: 0 10px 22px;
+  }
+
+  .panel {
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .subpanel,
+  .table-card,
+  .metric-card,
+  .create-record-panel,
+  .create-record-body {
+    border-radius: 16px;
+  }
+
+  .detail-title-with-avatar {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-photo-control,
+  .profile-photo-frame {
+    width: 74px;
+  }
+
+  .profile-photo-frame {
+    height: 74px;
+  }
+
+  .side-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .app-topbar {
+    height: auto;
+    min-height: 72px;
+  }
+
+  .notice {
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .value-chart article > div:first-child,
+  .cycle-card-head,
+  .calendar-controls {
+    align-items: flex-start;
+    display: grid;
+    gap: 6px;
+  }
+
+  .pill-row {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .camera-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .camera-toolbar button {
+    width: 100%;
   }
 }
 

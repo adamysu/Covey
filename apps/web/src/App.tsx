@@ -5391,86 +5391,90 @@ function EggManager({
         </form>
       </CreateRecordPanel>
 
-      <section className="subpanel">
-        <p className="eyebrow">Logs</p>
-        <h3>Egg history</h3>
-        <div className="table-tools egg-table-tools">
-          <p className="muted">
-            Showing {filteredEggLogs.length} of {eggLogs.length} logs. Line filters use bird lineage when known,
-            otherwise the coop's mating period on the log date.
-          </p>
-          <div className="bulk-actions" aria-label="Bulk egg log actions">
-            <span>
-              {selectedEggLogIds.length > 1
-                ? `${selectedEggLogIds.length} selected`
-                : selectedEggLogIds.length === 1
-                  ? "Select one more for bulk actions"
-                  : "Select rows for bulk actions"}
-            </span>
-            {selectedEggLogIds.length > 1 ? (
-              <>
-                <button className="secondary" disabled={busy} type="button" onClick={() => setBulkEggEditing((current) => !current)}>
-                  Edit
-                </button>
-                <button className="danger" disabled={busy} type="button" onClick={applyBulkEggDelete}>
-                  Delete
-                </button>
-              </>
-            ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Logs</p>
+            <h3>Egg history</h3>
+            <p className="muted compact-copy">
+              Showing {filteredEggLogs.length} of {eggLogs.length} logs. Line filters use bird lineage when known,
+              otherwise the coop's mating period on the log date.
+            </p>
           </div>
-          {bulkEggEditing && selectedEggLogIds.length > 1 ? (
-            <form className="bulk-edit-form" onSubmit={applyBulkEggEdit}>
-              <div>
-                <p className="eyebrow">Bulk edit</p>
-                <strong>Update {selectedEggLogIds.length} selected egg logs</strong>
-                <span>Fields left as no change will be skipped.</span>
-              </div>
-              <label>
-                Date
-                <input type="date" value={bulkEggDate} onChange={(event) => setBulkEggDate(event.target.value)} />
-              </label>
-              <label>
-                Coop
-                <select value={bulkEggCoopId} onChange={(event) => setBulkEggCoopId(event.target.value)}>
-                  <option value="NO_CHANGE">No change</option>
-                  <option value="none">No coop</option>
-                  {coops.map((coop) => (
-                    <option key={coop.id} value={coop.id}>{coop.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Bird
-                <select value={bulkEggBirdId} onChange={(event) => setBulkEggBirdId(event.target.value)}>
-                  <option value="NO_CHANGE">No change</option>
-                  <option value="none">No bird</option>
-                  {birds.map((bird) => (
-                    <option key={bird.id} value={bird.id}>{birdLabel(bird)}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Notes
-                <input placeholder="No change" value={bulkEggNotes} onChange={(event) => setBulkEggNotes(event.target.value)} />
-              </label>
-              <div className="row-actions">
-                <button
-                  disabled={
-                    busy ||
-                    (!bulkEggDate && bulkEggCoopId === "NO_CHANGE" && bulkEggBirdId === "NO_CHANGE" && !bulkEggNotes.trim())
-                  }
-                  type="submit"
-                >
-                  Apply changes
-                </button>
-                <button className="secondary" disabled={busy} type="button" onClick={() => setBulkEggEditing(false)}>
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : null}
         </div>
         <div className="table-card">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk egg log actions">
+              <span>
+                {selectedEggLogIds.length > 1
+                  ? `${selectedEggLogIds.length} selected`
+                  : selectedEggLogIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select rows for bulk actions"}
+              </span>
+              {selectedEggLogIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkEggEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkEggDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {bulkEggEditing && selectedEggLogIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkEggEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedEggLogIds.length} selected egg logs</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Date
+                  <input type="date" value={bulkEggDate} onChange={(event) => setBulkEggDate(event.target.value)} />
+                </label>
+                <label>
+                  Coop
+                  <select value={bulkEggCoopId} onChange={(event) => setBulkEggCoopId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="none">No coop</option>
+                    {coops.map((coop) => (
+                      <option key={coop.id} value={coop.id}>{coop.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Bird
+                  <select value={bulkEggBirdId} onChange={(event) => setBulkEggBirdId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="none">No bird</option>
+                    {birds.map((bird) => (
+                      <option key={bird.id} value={bird.id}>{birdLabel(bird)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkEggNotes} onChange={(event) => setBulkEggNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={
+                      busy ||
+                      (!bulkEggDate && bulkEggCoopId === "NO_CHANGE" && bulkEggBirdId === "NO_CHANGE" && !bulkEggNotes.trim())
+                    }
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkEggEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
           {eggLogs.length ? (
             sortedEggLogs.length ? (
               <div className="egg-list">
@@ -5875,85 +5879,93 @@ function IncubationManager({
         </section>
       </div>
 
-      <section className="subpanel">
-        <p className="eyebrow">Cycles</p>
-        <h3>Incubation timeline</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk incubation actions">
-          <label className="table-select-cell select-all-card" aria-label="Select all incubation cycles">
-            <input checked={allIncubationsSelected} type="checkbox" onChange={(event) => toggleAllIncubations(event.target.checked)} />
-          </label>
-          <span>
-            {selectedIncubationIds.length > 1
-              ? `${selectedIncubationIds.length} selected`
-              : selectedIncubationIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select cycles for bulk actions"}
-          </span>
-          {selectedIncubationIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkIncubationEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkIncubationDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Cycles</p>
+            <h3>Incubation timeline</h3>
+            <p className="muted compact-copy">Track each cycle from set date through candle, lockdown, and hatch.</p>
+          </div>
         </div>
-        {bulkIncubationEditing && selectedIncubationIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkIncubationEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedIncubationIds.length} selected cycles</strong>
-              <span>Fields left as no change will be skipped.</span>
+        <div className="table-card card-list-table">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk incubation actions">
+              <label className="table-select-cell select-all-card" aria-label="Select all incubation cycles">
+                <input checked={allIncubationsSelected} type="checkbox" onChange={(event) => toggleAllIncubations(event.target.checked)} />
+              </label>
+              <span>
+                {selectedIncubationIds.length > 1
+                  ? `${selectedIncubationIds.length} selected`
+                  : selectedIncubationIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select cycles for bulk actions"}
+              </span>
+              {selectedIncubationIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkIncubationEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkIncubationDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
             </div>
-            <label>
-              Mating period
-              <select value={bulkIncubationMatingPeriodId} onChange={(event) => setBulkIncubationMatingPeriodId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                <option value="none">No mating period</option>
-                {matingPeriods.map((period) => (
-                  <option key={period.id} value={period.id}>{period.label}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Candle date
-              <input type="date" value={bulkIncubationCandleDate} onChange={(event) => setBulkIncubationCandleDate(event.target.value)} />
-            </label>
-            <label>
-              Lockdown date
-              <input type="date" value={bulkIncubationLockdownDate} onChange={(event) => setBulkIncubationLockdownDate(event.target.value)} />
-            </label>
-            <label>
-              Expected hatch
-              <input type="date" value={bulkIncubationHatchDate} onChange={(event) => setBulkIncubationHatchDate(event.target.value)} />
-            </label>
-            <label>
-              Notes
-              <input placeholder="No change" value={bulkIncubationNotes} onChange={(event) => setBulkIncubationNotes(event.target.value)} />
-            </label>
-            <div className="row-actions">
-              <button
-                disabled={
-                  busy ||
-                  (bulkIncubationMatingPeriodId === "NO_CHANGE" &&
-                    !bulkIncubationCandleDate &&
-                    !bulkIncubationLockdownDate &&
-                    !bulkIncubationHatchDate &&
-                    !bulkIncubationNotes.trim())
-                }
-                type="submit"
-              >
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkIncubationEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
-        <div className="cycle-list">
+            {bulkIncubationEditing && selectedIncubationIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkIncubationEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedIncubationIds.length} selected cycles</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Mating period
+                  <select value={bulkIncubationMatingPeriodId} onChange={(event) => setBulkIncubationMatingPeriodId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="none">No mating period</option>
+                    {matingPeriods.map((period) => (
+                      <option key={period.id} value={period.id}>{period.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Candle date
+                  <input type="date" value={bulkIncubationCandleDate} onChange={(event) => setBulkIncubationCandleDate(event.target.value)} />
+                </label>
+                <label>
+                  Lockdown date
+                  <input type="date" value={bulkIncubationLockdownDate} onChange={(event) => setBulkIncubationLockdownDate(event.target.value)} />
+                </label>
+                <label>
+                  Expected hatch
+                  <input type="date" value={bulkIncubationHatchDate} onChange={(event) => setBulkIncubationHatchDate(event.target.value)} />
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkIncubationNotes} onChange={(event) => setBulkIncubationNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={
+                      busy ||
+                      (bulkIncubationMatingPeriodId === "NO_CHANGE" &&
+                        !bulkIncubationCandleDate &&
+                        !bulkIncubationLockdownDate &&
+                        !bulkIncubationHatchDate &&
+                        !bulkIncubationNotes.trim())
+                    }
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkIncubationEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+          <div className="cycle-list">
           {incubations.length ? (
             incubations.map((cycle) =>
               editingId === cycle.id ? (
@@ -6079,8 +6091,9 @@ function IncubationManager({
               <p>Create a cycle to see reminders, humidity changes, and hatch metrics.</p>
             </div>
           )}
-	        </div>
-	      </section>
+        </div>
+        </div>
+      </section>
 
       <section className="subpanel">
         <p className="eyebrow">Batches</p>
@@ -6113,6 +6126,7 @@ function IncubationManager({
               <p>Record a hatched count on an incubation and Covey will create the hatch batch automatically.</p>
             </div>
           )}
+        </div>
         </div>
       </section>
 	    </section>
@@ -6156,9 +6170,29 @@ function IncubationDetail({
             {cycle.eggs_set} eggs set · {cycle.breeding_line_name || "No line"}{cycle.mating_period_label ? ` · ${cycle.mating_period_label}` : ""}
           </p>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to incubation
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to incubation
+          </button>
+          {cycle.hatched_count != null && !cycle.hatch_batch_id ? (
+            <button disabled={busy} type="button" onClick={() => onCreateHatchBatch(cycle, autoCreateChicks)}>
+              Create hatch batch
+            </button>
+          ) : null}
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm(`Delete ${cycle.label}?`)) {
+                onDeleteIncubation(cycle.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Incubation cycle summary">
@@ -6200,39 +6234,55 @@ function IncubationDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Timeline</p>
-        <h3>Cycle milestones</h3>
-        <article className="cycle-card">
-          <div className="cycle-timeline">
-            <div className="cycle-timeline-fill" style={{ width: `${percentComplete(cycle.set_date, cycle.expected_hatch_date)}%` }} />
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Timeline</p>
+            <h3>Cycle milestones</h3>
+            <p className="muted compact-copy">Set, candle, lockdown, and hatch timing for this incubation.</p>
           </div>
-          <div className="cycle-milestones">
-            <span>Set {displayDate(cycle.set_date)}</span>
-            <span>Candle {displayDate(cycle.candle_date)}</span>
-            <span>Lockdown {displayDate(cycle.lockdown_date)}</span>
-            <span>Hatch {displayDate(cycle.expected_hatch_date)}</span>
-          </div>
-        </article>
-      </section>
-
-      <section className="subpanel">
-        <p className="eyebrow">Parameters</p>
-        <h3>Incubation settings used</h3>
-        <div className="source-summary">
-          {[
-            ["Days 1 to lockdown temp", `${parameterValue(cycle.parameters, "incubationTempF") || "?"} F`],
-            ["Days 1 to lockdown humidity", `${parameterValue(cycle.parameters, "incubationHumidity") || "?"}%`],
-            ["Lockdown temp", `${parameterValue(cycle.parameters, "lockdownTempF") || "?"} F`],
-            ["Lockdown humidity", `${parameterValue(cycle.parameters, "lockdownHumidity") || "?"}%`]
-          ].map(([label, value]) => (
-            <article key={label}>
-              <div>
-                <strong>{label}</strong>
-                <span>{value}</span>
+        </div>
+        <div className="table-card card-list-table">
+          <div className="cycle-list">
+            <article className="cycle-card">
+              <div className="cycle-timeline">
+                <div className="cycle-timeline-fill" style={{ width: `${percentComplete(cycle.set_date, cycle.expected_hatch_date)}%` }} />
+              </div>
+              <div className="cycle-milestones">
+                <span>Set {displayDate(cycle.set_date)}</span>
+                <span>Candle {displayDate(cycle.candle_date)}</span>
+                <span>Lockdown {displayDate(cycle.lockdown_date)}</span>
+                <span>Hatch {displayDate(cycle.expected_hatch_date)}</span>
               </div>
             </article>
-          ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Parameters</p>
+            <h3>Incubation settings used</h3>
+            <p className="muted compact-copy">Overrides saved with this cycle, separate from global defaults.</p>
+          </div>
+        </div>
+        <div className="table-card card-list-table">
+          <div className="source-summary record-card-list">
+            {[
+              ["Days 1 to lockdown temp", `${parameterValue(cycle.parameters, "incubationTempF") || "?"} F`],
+              ["Days 1 to lockdown humidity", `${parameterValue(cycle.parameters, "incubationHumidity") || "?"}%`],
+              ["Lockdown temp", `${parameterValue(cycle.parameters, "lockdownTempF") || "?"} F`],
+              ["Lockdown humidity", `${parameterValue(cycle.parameters, "lockdownHumidity") || "?"}%`]
+            ].map(([label, value]) => (
+              <article key={label}>
+                <div>
+                  <strong>{label}</strong>
+                  <span>{value}</span>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -6302,24 +6352,6 @@ function IncubationDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save incubation</button>
-            {cycle.hatched_count != null && !cycle.hatch_batch_id ? (
-              <button disabled={busy} type="button" onClick={() => onCreateHatchBatch(cycle, autoCreateChicks)}>
-                Create hatch batch
-              </button>
-            ) : null}
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm(`Delete ${cycle.label}?`)) {
-                  onDeleteIncubation(cycle.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -6705,75 +6737,83 @@ function BreedingManager({
         </CreateRecordPanel>
       </div>
 
-      <section className="subpanel">
-        <p className="eyebrow">Lines</p>
-        <h3>Breeding lines</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk breeding line actions">
-          <label className="table-select-cell select-all-card" aria-label="Select all breeding lines">
-            <input
-              checked={allBreedingLinesSelected}
-              type="checkbox"
-              onChange={(event) => {
-                setSelectedBreedingLineIds(event.target.checked ? breedingLines.map((line) => line.id) : []);
-                setBulkLineEditing(false);
-              }}
-            />
-          </label>
-          <span>
-            {selectedBreedingLineIds.length > 1
-              ? `${selectedBreedingLineIds.length} selected`
-              : selectedBreedingLineIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select lines for bulk actions"}
-          </span>
-          {selectedBreedingLineIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkLineEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkLineDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Lines</p>
+            <h3>Breeding lines</h3>
+            <p className="muted compact-copy">Long-running genetic goals and the mating periods attached to them.</p>
+          </div>
         </div>
-        {bulkLineEditing && selectedBreedingLineIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkLineEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedBreedingLineIds.length} selected lines</strong>
-              <span>Fields left as no change will be skipped.</span>
+        <div className="table-card card-list-table">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk breeding line actions">
+              <label className="table-select-cell select-all-card" aria-label="Select all breeding lines">
+                <input
+                  checked={allBreedingLinesSelected}
+                  type="checkbox"
+                  onChange={(event) => {
+                    setSelectedBreedingLineIds(event.target.checked ? breedingLines.map((line) => line.id) : []);
+                    setBulkLineEditing(false);
+                  }}
+                />
+              </label>
+              <span>
+                {selectedBreedingLineIds.length > 1
+                  ? `${selectedBreedingLineIds.length} selected`
+                  : selectedBreedingLineIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select lines for bulk actions"}
+              </span>
+              {selectedBreedingLineIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkLineEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkLineDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
             </div>
-            <label>
-              Status
-              <select value={bulkLineActive} onChange={(event) => setBulkLineActive(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </label>
-            <label>
-              Goal
-              <input placeholder="No change" value={bulkLineGoal} onChange={(event) => setBulkLineGoal(event.target.value)} />
-            </label>
-            <label>
-              Notes
-              <input placeholder="No change" value={bulkLineNotes} onChange={(event) => setBulkLineNotes(event.target.value)} />
-            </label>
-            <div className="row-actions">
-              <button
-                disabled={busy || (bulkLineActive === "NO_CHANGE" && !bulkLineGoal.trim() && !bulkLineNotes.trim())}
-                type="submit"
-              >
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkLineEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
-        <div className="cycle-list">
+            {bulkLineEditing && selectedBreedingLineIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkLineEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedBreedingLineIds.length} selected lines</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Status
+                  <select value={bulkLineActive} onChange={(event) => setBulkLineActive(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </label>
+                <label>
+                  Goal
+                  <input placeholder="No change" value={bulkLineGoal} onChange={(event) => setBulkLineGoal(event.target.value)} />
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkLineNotes} onChange={(event) => setBulkLineNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={busy || (bulkLineActive === "NO_CHANGE" && !bulkLineGoal.trim() && !bulkLineNotes.trim())}
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkLineEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+          <div className="cycle-list">
           {breedingLines.length ? (
             breedingLines.map((line) =>
               editingLineId === line.id ? (
@@ -6852,103 +6892,112 @@ function BreedingManager({
             </div>
           )}
         </div>
+        </div>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Periods</p>
-        <h3>Pen mating periods</h3>
-        <div className="bulk-actions table-bulk-actions" aria-label="Bulk mating period actions">
-          <label className="table-select-cell select-all-card" aria-label="Select all mating periods">
-            <input
-              checked={allMatingPeriodsSelected}
-              type="checkbox"
-              onChange={(event) => {
-                setSelectedMatingPeriodIds(event.target.checked ? matingPeriods.map((period) => period.id) : []);
-                setBulkPeriodEditing(false);
-              }}
-            />
-          </label>
-          <span>
-            {selectedMatingPeriodIds.length > 1
-              ? `${selectedMatingPeriodIds.length} selected`
-              : selectedMatingPeriodIds.length === 1
-                ? "Select one more for bulk actions"
-                : "Select periods for bulk actions"}
-          </span>
-          {selectedMatingPeriodIds.length > 1 ? (
-            <>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkPeriodEditing((current) => !current)}>
-                Edit
-              </button>
-              <button className="danger" disabled={busy} type="button" onClick={applyBulkPeriodDelete}>
-                Delete
-              </button>
-            </>
-          ) : null}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Periods</p>
+            <h3>Pen mating periods</h3>
+            <p className="muted compact-copy">Temporary sire and hen-group windows that roll up fertility, hatch, and offspring stats.</p>
+          </div>
         </div>
-        {bulkPeriodEditing && selectedMatingPeriodIds.length > 1 ? (
-          <form className="bulk-edit-form" onSubmit={applyBulkPeriodEdit}>
-            <div>
-              <p className="eyebrow">Bulk edit</p>
-              <strong>Update {selectedMatingPeriodIds.length} selected periods</strong>
-              <span>Fields left as no change will be skipped.</span>
+        <div className="table-card card-list-table">
+          <div className="table-control-panel">
+            <div className="bulk-actions table-bulk-actions" aria-label="Bulk mating period actions">
+              <label className="table-select-cell select-all-card" aria-label="Select all mating periods">
+                <input
+                  checked={allMatingPeriodsSelected}
+                  type="checkbox"
+                  onChange={(event) => {
+                    setSelectedMatingPeriodIds(event.target.checked ? matingPeriods.map((period) => period.id) : []);
+                    setBulkPeriodEditing(false);
+                  }}
+                />
+              </label>
+              <span>
+                {selectedMatingPeriodIds.length > 1
+                  ? `${selectedMatingPeriodIds.length} selected`
+                  : selectedMatingPeriodIds.length === 1
+                    ? "Select one more for bulk actions"
+                    : "Select periods for bulk actions"}
+              </span>
+              {selectedMatingPeriodIds.length > 1 ? (
+                <>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkPeriodEditing((current) => !current)}>
+                    Edit
+                  </button>
+                  <button className="danger" disabled={busy} type="button" onClick={applyBulkPeriodDelete}>
+                    Delete
+                  </button>
+                </>
+              ) : null}
             </div>
-            <label>
-              Breeding line
-              <select value={bulkPeriodLineId} onChange={(event) => setBulkPeriodLineId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {breedingLines.map((line) => (
-                  <option key={line.id} value={line.id}>{line.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Coop
-              <select value={bulkPeriodCoopId} onChange={(event) => setBulkPeriodCoopId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {coops.map((coop) => (
-                  <option key={coop.id} value={coop.id}>{coop.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Sire
-              <select value={bulkPeriodSireId} onChange={(event) => setBulkPeriodSireId(event.target.value)}>
-                <option value="NO_CHANGE">No change</option>
-                {possibleSires.map((bird) => (
-                  <option key={bird.id} value={bird.id}>{birdLabel(bird)}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              End date
-              <input type="date" value={bulkPeriodEndedOn} onChange={(event) => setBulkPeriodEndedOn(event.target.value)} />
-            </label>
-            <label>
-              Notes
-              <input placeholder="No change" value={bulkPeriodNotes} onChange={(event) => setBulkPeriodNotes(event.target.value)} />
-            </label>
-            <div className="row-actions">
-              <button
-                disabled={
-                  busy ||
-                  (bulkPeriodLineId === "NO_CHANGE" &&
-                    bulkPeriodCoopId === "NO_CHANGE" &&
-                    bulkPeriodSireId === "NO_CHANGE" &&
-                    !bulkPeriodEndedOn &&
-                    !bulkPeriodNotes.trim())
-                }
-                type="submit"
-              >
-                Apply changes
-              </button>
-              <button className="secondary" disabled={busy} type="button" onClick={() => setBulkPeriodEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
-        <div className="cycle-list">
+            {bulkPeriodEditing && selectedMatingPeriodIds.length > 1 ? (
+              <form className="bulk-edit-form" onSubmit={applyBulkPeriodEdit}>
+                <div>
+                  <p className="eyebrow">Bulk edit</p>
+                  <strong>Update {selectedMatingPeriodIds.length} selected periods</strong>
+                  <span>Fields left as no change will be skipped.</span>
+                </div>
+                <label>
+                  Breeding line
+                  <select value={bulkPeriodLineId} onChange={(event) => setBulkPeriodLineId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {breedingLines.map((line) => (
+                      <option key={line.id} value={line.id}>{line.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Coop
+                  <select value={bulkPeriodCoopId} onChange={(event) => setBulkPeriodCoopId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {coops.map((coop) => (
+                      <option key={coop.id} value={coop.id}>{coop.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Sire
+                  <select value={bulkPeriodSireId} onChange={(event) => setBulkPeriodSireId(event.target.value)}>
+                    <option value="NO_CHANGE">No change</option>
+                    {possibleSires.map((bird) => (
+                      <option key={bird.id} value={bird.id}>{birdLabel(bird)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  End date
+                  <input type="date" value={bulkPeriodEndedOn} onChange={(event) => setBulkPeriodEndedOn(event.target.value)} />
+                </label>
+                <label>
+                  Notes
+                  <input placeholder="No change" value={bulkPeriodNotes} onChange={(event) => setBulkPeriodNotes(event.target.value)} />
+                </label>
+                <div className="row-actions">
+                  <button
+                    disabled={
+                      busy ||
+                      (bulkPeriodLineId === "NO_CHANGE" &&
+                        bulkPeriodCoopId === "NO_CHANGE" &&
+                        bulkPeriodSireId === "NO_CHANGE" &&
+                        !bulkPeriodEndedOn &&
+                        !bulkPeriodNotes.trim())
+                    }
+                    type="submit"
+                  >
+                    Apply changes
+                  </button>
+                  <button className="secondary" disabled={busy} type="button" onClick={() => setBulkPeriodEditing(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+          <div className="cycle-list">
           {matingPeriods.length ? (
             matingPeriods.map((period) =>
               editingPeriodId === period.id ? (
@@ -7043,6 +7092,7 @@ function BreedingManager({
             </div>
           )}
         </div>
+        </div>
       </section>
     </section>
   );
@@ -7126,9 +7176,24 @@ function MatingPeriodDetail({
             {period.breeding_line_name} · {period.coop_name || "No coop"} · sire {period.sire_label || "unknown"}
           </p>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm(`Delete ${period.label}?`)) {
+                onDeleteMatingPeriod(period.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Mating period summary">
@@ -7166,48 +7231,65 @@ function MatingPeriodDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Economics</p>
-        <h3>Period value breakdown</h3>
-        <div className="value-chart" aria-label="Mating period value chart">
-          {[
-            { label: "Egg value", value: eggValue, tone: "positive" },
-            { label: "Chick value", value: chickValue, tone: "positive" },
-            { label: "Meat value", value: meatValue, tone: "positive" }
-          ].map((item) => (
-            <article key={item.label}>
-              <div>
-                <strong>{item.label}</strong>
-                <span>{money(item.value)}</span>
-              </div>
-              <div className="value-bar-track">
-                <div
-                  className={`value-bar-fill ${item.tone}`}
-                  style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
-                />
-              </div>
-            </article>
-          ))}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Economics</p>
+            <h3>Period value breakdown</h3>
+            <p className="muted compact-copy">Estimated value from eggs, hatch batches, and processed offspring records.</p>
+          </div>
         </div>
-      </section>
-
-      <section className="subpanel">
-        <p className="eyebrow">Recommendations</p>
-        <h3>Period signals</h3>
-        {recommendations.length ? (
-          <div className="source-summary">
-            {recommendations.map((recommendation) => (
-              <article key={recommendation}>
+        <div className="table-card value-card">
+          <div className="value-chart" aria-label="Mating period value chart">
+            {[
+              { label: "Egg value", value: eggValue, tone: "positive" },
+              { label: "Chick value", value: chickValue, tone: "positive" },
+              { label: "Meat value", value: meatValue, tone: "positive" }
+            ].map((item) => (
+              <article key={item.label}>
                 <div>
-                  <strong>{recommendation}</strong>
-                  <span>Specific to this sire and hen group window.</span>
+                  <strong>{item.label}</strong>
+                  <span>{money(item.value)}</span>
+                </div>
+                <div className="value-bar-track">
+                  <div
+                    className={`value-bar-fill ${item.tone}`}
+                    style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
+                  />
                 </div>
               </article>
             ))}
           </div>
-        ) : (
-          <p className="muted">No urgent period-level recommendations yet.</p>
-        )}
+        </div>
+      </section>
+
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Recommendations</p>
+            <h3>Period signals</h3>
+            <p className="muted compact-copy">Specific to this sire and hen group window.</p>
+          </div>
+        </div>
+        <div className="table-card card-list-table">
+          {recommendations.length ? (
+            <div className="source-summary record-card-list">
+              {recommendations.map((recommendation) => (
+                <article key={recommendation}>
+                  <div>
+                    <strong>{recommendation}</strong>
+                    <span>Specific to this sire and hen group window.</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No urgent signals</h3>
+              <p>No urgent period-level recommendations yet.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="feed-layout">
@@ -7297,19 +7379,6 @@ function MatingPeriodDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save period</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm(`Delete ${period.label}?`)) {
-                  onDeleteMatingPeriod(period.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -7416,9 +7485,24 @@ function BreedingLineDetail({
           <h2>{line.name}</h2>
           <p className="muted">{line.goal || "No line goal recorded yet."}</p>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to breeding
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to breeding
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm(`Delete ${line.name}?`)) {
+                onDeleteBreedingLine(line.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Breeding line summary">
@@ -7456,51 +7540,67 @@ function BreedingLineDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Economics</p>
-        <h3>Line value breakdown</h3>
-        <div className="value-chart" aria-label="Breeding line value chart">
-          {[
-            { label: "Egg value", value: eggValue, tone: "positive" },
-            { label: "Chick value", value: chickValue, tone: "positive" },
-            { label: "Meat value", value: meatValue, tone: "positive" }
-          ].map((item) => (
-            <article key={item.label}>
-              <div>
-                <strong>{item.label}</strong>
-                <span>{money(item.value)}</span>
-              </div>
-              <div className="value-bar-track">
-                <div
-                  className={`value-bar-fill ${item.tone}`}
-                  style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
-                />
-              </div>
-            </article>
-          ))}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Economics</p>
+            <h3>Line value breakdown</h3>
+            <p className="muted compact-copy">
+              Line value uses linked egg logs, hatch batch chick counts, and processed/cull bird weights.
+            </p>
+          </div>
         </div>
-        <p className="muted compact-copy">
-          Line value uses egg logs linked to this line or its mating periods, hatch batch chick counts, and processed/cull bird weights from this line.
-        </p>
-      </section>
-
-      <section className="subpanel">
-        <p className="eyebrow">Recommendations</p>
-        <h3>Breeder and process signals</h3>
-        {recommendations.length ? (
-          <div className="source-summary">
-            {recommendations.map((recommendation) => (
-              <article key={recommendation}>
+        <div className="table-card value-card">
+          <div className="value-chart" aria-label="Breeding line value chart">
+            {[
+              { label: "Egg value", value: eggValue, tone: "positive" },
+              { label: "Chick value", value: chickValue, tone: "positive" },
+              { label: "Meat value", value: meatValue, tone: "positive" }
+            ].map((item) => (
+              <article key={item.label}>
                 <div>
-                  <strong>{recommendation}</strong>
-                  <span>Based on this line's current records.</span>
+                  <strong>{item.label}</strong>
+                  <span>{money(item.value)}</span>
+                </div>
+                <div className="value-bar-track">
+                  <div
+                    className={`value-bar-fill ${item.tone}`}
+                    style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
+                  />
                 </div>
               </article>
             ))}
           </div>
-        ) : (
-          <p className="muted">No urgent line-level recommendations yet. More records will make this smarter.</p>
-        )}
+        </div>
+      </section>
+
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Recommendations</p>
+            <h3>Breeder and process signals</h3>
+            <p className="muted compact-copy">Based on this line's current records.</p>
+          </div>
+        </div>
+        <div className="table-card card-list-table">
+          {recommendations.length ? (
+            <div className="source-summary record-card-list">
+              {recommendations.map((recommendation) => (
+                <article key={recommendation}>
+                  <div>
+                    <strong>{recommendation}</strong>
+                    <span>Based on this line's current records.</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No urgent signals</h3>
+              <p>No urgent line-level recommendations yet. More records will make this smarter.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="feed-layout">
@@ -7547,47 +7647,54 @@ function BreedingLineDetail({
         </section>
       </div>
 
-      <section className="subpanel">
-        <p className="eyebrow">Mating periods</p>
-        <h3>Periods under this line</h3>
-        <div className="cycle-list">
-          {linePeriods.length ? (
-            linePeriods.map((period) => (
-              <article
-                className="cycle-card clickable-row"
-                key={period.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onOpenMatingPeriod(period.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") onOpenMatingPeriod(period.id);
-                }}
-              >
-                <div className="cycle-card-head">
-                  <div>
-                    <strong>{period.label}</strong>
-                    <p>
-                      {period.coop_name || "No coop"} · sire {period.sire_label || "unknown"} ·{" "}
-                      {displayDate(period.started_on)} to {period.ended_on ? displayDate(period.ended_on) : "current"}
-                    </p>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Mating periods</p>
+            <h3>Periods under this line</h3>
+            <p className="muted compact-copy">{linePeriods.length} mating periods roll up to this breeding line.</p>
+          </div>
+        </div>
+        <div className="table-card card-list-table">
+          <div className="cycle-list">
+            {linePeriods.length ? (
+              linePeriods.map((period) => (
+                <article
+                  className="cycle-card clickable-row"
+                  key={period.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpenMatingPeriod(period.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") onOpenMatingPeriod(period.id);
+                  }}
+                >
+                  <div className="cycle-card-head">
+                    <div>
+                      <strong>{period.label}</strong>
+                      <p>
+                        {period.coop_name || "No coop"} · sire {period.sire_label || "unknown"} ·{" "}
+                        {displayDate(period.started_on)} to {period.ended_on ? displayDate(period.ended_on) : "current"}
+                      </p>
+                    </div>
+                    <span className="row-open-hint">Open</span>
                   </div>
-                  <span className="row-open-hint">Open</span>
-                </div>
-                <div className="pill-row">
-                  <span>{period.hen_count} hens: {period.hens.map((hen) => hen.label).join(", ") || "none selected"}</span>
-                  <span>{period.incubation_count} incubations</span>
-                  <span>{rateLabel(fertileRate(period.eggs_set, period.fertile_eggs))} fertile</span>
-                  <span>{rateLabel(fertileRate(period.eggs_set, period.hatched_count))} hatch</span>
-                  <span>{period.notes || "No notes"}</span>
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="empty-state">
-              <h3>No mating periods yet</h3>
-              <p>Create a period when this line is placed into a breeding pen.</p>
-            </div>
-          )}
+                  <div className="pill-row">
+                    <span>{period.hen_count} hens: {period.hens.map((hen) => hen.label).join(", ") || "none selected"}</span>
+                    <span>{period.incubation_count} incubations</span>
+                    <span>{rateLabel(fertileRate(period.eggs_set, period.fertile_eggs))} fertile</span>
+                    <span>{rateLabel(fertileRate(period.eggs_set, period.hatched_count))} hatch</span>
+                    <span>{period.notes || "No notes"}</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>No mating periods yet</h3>
+                <p>Create a period when this line is placed into a breeding pen.</p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -7620,19 +7727,6 @@ function BreedingLineDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save line</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm(`Delete ${line.name}?`)) {
-                  onDeleteBreedingLine(line.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -9997,9 +10091,24 @@ function FeedTypeDetail({
             </p>
           </div>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to feed
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to feed
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm(`Delete ${feedTypeLabel(feed)}?`)) {
+                onDeleteFeedType(feed.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Feed detail summary">
@@ -10035,28 +10144,35 @@ function FeedTypeDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Cost movement</p>
-        <h3>Inventory and use</h3>
-        <div className="value-chart" aria-label="Feed cost chart">
-          {[
-            { label: "Restock value", value: totalRestockCost, tone: "positive" },
-            { label: "Top-off cost", value: totalTopOffCost, tone: "cost" },
-            { label: "On hand", value: feedInventoryValue(feed), tone: "positive" }
-          ].map((item) => (
-            <article key={item.label}>
-              <div>
-                <strong>{item.label}</strong>
-                <span>{money(item.value)}</span>
-              </div>
-              <div className="value-bar-track">
-                <div
-                  className={`value-bar-fill ${item.tone}`}
-                  style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
-                />
-              </div>
-            </article>
-          ))}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Cost movement</p>
+            <h3>Inventory and use</h3>
+            <p className="muted compact-copy">Bars compare restock value, top-off cost, and current inventory value.</p>
+          </div>
+        </div>
+        <div className="table-card value-card">
+          <div className="value-chart" aria-label="Feed cost chart">
+            {[
+              { label: "Restock value", value: totalRestockCost, tone: "positive" },
+              { label: "Top-off cost", value: totalTopOffCost, tone: "cost" },
+              { label: "On hand", value: feedInventoryValue(feed), tone: "positive" }
+            ].map((item) => (
+              <article key={item.label}>
+                <div>
+                  <strong>{item.label}</strong>
+                  <span>{money(item.value)}</span>
+                </div>
+                <div className="value-bar-track">
+                  <div
+                    className={`value-bar-fill ${item.tone}`}
+                    style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -10154,19 +10270,6 @@ function FeedTypeDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save feed</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm(`Delete ${feedTypeLabel(feed)}?`)) {
-                  onDeleteFeedType(feed.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -10334,11 +10437,27 @@ function CreateRecordPanel({
 }
 
 function RecordList({ children, emptyText, title }: { children: ReactNode; emptyText: string; title: string }) {
+  const count = Array.isArray(children) ? children.length : 0;
+
   return (
-    <section className="subpanel">
-      <p className="eyebrow">Records</p>
-      <h3>{title}</h3>
-      {Array.isArray(children) && children.length === 0 ? <p className="muted">{emptyText}</p> : <div className="source-summary">{children}</div>}
+    <section className="subpanel table-section">
+      <div className="table-section-header">
+        <div>
+          <p className="eyebrow">Records</p>
+          <h3>{title}</h3>
+          <p className="muted compact-copy">{count ? `${count} records shown` : emptyText}</p>
+        </div>
+      </div>
+      <div className="table-card card-list-table">
+        {count === 0 ? (
+          <div className="empty-state">
+            <h3>No records yet</h3>
+            <p>{emptyText}</p>
+          </div>
+        ) : (
+          <div className="source-summary record-card-list">{children}</div>
+        )}
+      </div>
     </section>
   );
 }
@@ -11464,9 +11583,21 @@ function SaleDetail({
             {displayDate(sale.sold_on)} · {numberValue(sale.quantity)} {sale.unit} at {money(sale.unit_price)}
           </p>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to sales
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to sales
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm("Delete this sale?")) onDeleteSale(sale.id);
+            }}
+          >
+            Delete sale
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Sale summary">
@@ -11492,27 +11623,33 @@ function SaleDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Context</p>
-        <h3>Linked records</h3>
-        <div className="source-summary">
-          {[
-            ["Bird", sale.bird_band || sale.bird_name || ""],
-            ["Coop", sale.coop_name || ""],
-            ["Breeding line", sale.breeding_line_name || ""],
-            ["Mating period", sale.mating_period_label || ""],
-            ["Incubation", sale.incubation_label || ""],
-            ["Hatch batch", sale.hatch_batch_label || ""]
-          ].map(([label, value]) => (
-            <article key={label}>
-              <div>
-                <strong>{label}</strong>
-                <span>{value || "Not linked"}</span>
-              </div>
-            </article>
-          ))}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Context</p>
+            <h3>Linked records</h3>
+            <p className="muted compact-copy">{sale.notes || "Linked context for ROI and performance reports."}</p>
+          </div>
         </div>
-        {sale.notes ? <p className="muted compact-copy">{sale.notes}</p> : null}
+        <div className="table-card card-list-table">
+          <div className="source-summary record-card-list">
+            {[
+              ["Bird", sale.bird_band || sale.bird_name || ""],
+              ["Coop", sale.coop_name || ""],
+              ["Breeding line", sale.breeding_line_name || ""],
+              ["Mating period", sale.mating_period_label || ""],
+              ["Incubation", sale.incubation_label || ""],
+              ["Hatch batch", sale.hatch_batch_label || ""]
+            ].map(([label, value]) => (
+              <article key={label}>
+                <div>
+                  <strong>{label}</strong>
+                  <span>{value || "Not linked"}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
       </section>
 
       <CreateRecordPanel buttonLabel="Edit sale" eyebrow="Record" title="Edit sale">
@@ -11581,16 +11718,6 @@ function SaleDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">{busy ? "Saving..." : "Save sale"}</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm("Delete this sale?")) onDeleteSale(sale.id);
-              }}
-            >
-              Delete sale
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -11652,9 +11779,21 @@ function HealthEventDetail({
             </p>
           </div>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to health
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to health
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm("Delete this health record?")) onDeleteHealthEvent(event.id);
+            }}
+          >
+            Delete record
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Health record summary">
@@ -11682,22 +11821,29 @@ function HealthEventDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Notes</p>
-        <h3>Observation and treatment</h3>
-        <div className="source-summary">
-          <article>
-            <div>
-              <strong>Treatment</strong>
-              <span>{event.treatment || "No treatment logged"}</span>
-            </div>
-          </article>
-          <article>
-            <div>
-              <strong>Notes</strong>
-              <span>{event.notes || "No notes logged"}</span>
-            </div>
-          </article>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Notes</p>
+            <h3>Observation and treatment</h3>
+            <p className="muted compact-copy">The latest treatment notes and keeper observations for this health record.</p>
+          </div>
+        </div>
+        <div className="table-card card-list-table">
+          <div className="source-summary record-card-list">
+            <article>
+              <div>
+                <strong>Treatment</strong>
+                <span>{event.treatment || "No treatment logged"}</span>
+              </div>
+            </article>
+            <article>
+              <div>
+                <strong>Notes</strong>
+                <span>{event.notes || "No notes logged"}</span>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -11763,16 +11909,6 @@ function HealthEventDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">{busy ? "Saving..." : "Save health record"}</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm("Delete this health record?")) onDeleteHealthEvent(event.id);
-              }}
-            >
-              Delete record
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -12010,59 +12146,6 @@ function ReportsManager({
         </button>
       </div>
 
-      <section className="report-controls">
-        <label>
-          Report type
-          <select value={reportKind} onChange={(event) => setReportKind(event.target.value as ReportKind)}>
-            <option value="eggs">Egg production</option>
-            <option value="feed">Feed cost</option>
-            <option value="sales">Sales and revenue</option>
-            <option value="incubation">Incubation performance</option>
-            <option value="breeding">Breeding performance</option>
-            <option value="birdValue">Bird value</option>
-            <option value="health">Health and behavior</option>
-            <option value="dataQuality">Data quality</option>
-          </select>
-        </label>
-        <label>
-          From
-          <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
-        </label>
-        <label>
-          To
-          <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
-        </label>
-        <label>
-          Coop
-          <select value={coopId} onChange={(event) => setCoopId(event.target.value)}>
-            <option value="all">All coops</option>
-            {coops.map((coop) => (
-              <option key={coop.id} value={coop.id}>{coop.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Breeding line
-          <select value={breedingLineId} onChange={(event) => setBreedingLineId(event.target.value)}>
-            <option value="all">All lines</option>
-            {breedingLines.map((line) => (
-              <option key={line.id} value={line.id}>{line.name}</option>
-            ))}
-          </select>
-        </label>
-        {reportKind === "birdValue" ? (
-          <label>
-            Bird status
-            <select value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="all">All statuses</option>
-              {birdStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-      </section>
-
       <section className="metric-grid embedded" aria-label="Report summary">
         <article className="metric-card">
           <p className="eyebrow">Report</p>
@@ -12091,33 +12174,98 @@ function ReportsManager({
         </article>
       </section>
 
-      {reportRows.length ? (
-        <div className="report-table-wrap">
-          <table className="report-table">
-            <thead>
-              <tr>
-                {reportHeaders.map((header) => (
-                  <th key={header}>{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {reportRows.map((row, index) => (
-                <tr key={index}>
-                  {reportHeaders.map((header) => (
-                    <td key={header}>{row[header]}</td>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Current view</p>
+            <h3>{reportLabel}</h3>
+            <p className="muted compact-copy">{reportRows.length} rows match the current filters.</p>
+          </div>
+        </div>
+        <div className="table-card">
+          <div className="table-control-panel">
+            <div className="report-controls">
+              <label>
+                Report type
+                <select value={reportKind} onChange={(event) => setReportKind(event.target.value as ReportKind)}>
+                  <option value="eggs">Egg production</option>
+                  <option value="feed">Feed cost</option>
+                  <option value="sales">Sales and revenue</option>
+                  <option value="incubation">Incubation performance</option>
+                  <option value="breeding">Breeding performance</option>
+                  <option value="birdValue">Bird value</option>
+                  <option value="health">Health and behavior</option>
+                  <option value="dataQuality">Data quality</option>
+                </select>
+              </label>
+              <label>
+                From
+                <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+              </label>
+              <label>
+                To
+                <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+              </label>
+              <label>
+                Coop
+                <select value={coopId} onChange={(event) => setCoopId(event.target.value)}>
+                  <option value="all">All coops</option>
+                  {coops.map((coop) => (
+                    <option key={coop.id} value={coop.id}>{coop.name}</option>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </select>
+              </label>
+              <label>
+                Breeding line
+                <select value={breedingLineId} onChange={(event) => setBreedingLineId(event.target.value)}>
+                  <option value="all">All lines</option>
+                  {breedingLines.map((line) => (
+                    <option key={line.id} value={line.id}>{line.name}</option>
+                  ))}
+                </select>
+              </label>
+              {reportKind === "birdValue" ? (
+                <label>
+                  Bird status
+                  <select value={status} onChange={(event) => setStatus(event.target.value)}>
+                    <option value="all">All statuses</option>
+                    {birdStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+          </div>
+          {reportRows.length ? (
+            <div className="report-table-wrap">
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    {reportHeaders.map((header) => (
+                      <th key={header}>{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportRows.map((row, index) => (
+                    <tr key={index}>
+                      {reportHeaders.map((header) => (
+                        <td key={header}>{row[header]}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No report rows</h3>
+              <p>Try widening the date range or clearing coop and breeding-line filters.</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="empty-state">
-          <h3>No report rows</h3>
-          <p>Try widening the date range or clearing coop and breeding-line filters.</p>
-        </div>
-      )}
+      </section>
     </section>
   );
 }
@@ -12181,62 +12329,73 @@ function AuditManager({
         </button>
       </div>
 
-      <div className="table-control-panel">
-        <div className="filter-grid">
-          <label>
-            Action
-            <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)}>
-              <option value="all">All actions</option>
-              {actions.map((action) => (
-                <option key={action} value={action}>{formatAuditAction(action)}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Record type
-            <select value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)}>
-              <option value="all">All record types</option>
-              {entityTypes.map((entityType) => (
-                <option key={entityType} value={entityType}>{formatAuditEntity(entityType)}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            User
-            <select value={userFilter} onChange={(event) => setUserFilter(event.target.value)}>
-              <option value="all">All users</option>
-              {managedUsers.map((managedUser) => (
-                <option key={managedUser.id} value={managedUser.id}>{managedUser.display_name}</option>
-              ))}
-            </select>
-          </label>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Events</p>
+            <h3>History log</h3>
+            <p className="muted compact-copy">{filteredEvents.length} of {auditEvents.length} events shown.</p>
+          </div>
         </div>
-      </div>
+        <div className="table-card card-list-table">
+          <div className="table-control-panel">
+            <div className="filter-grid">
+              <label>
+                Action
+                <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)}>
+                  <option value="all">All actions</option>
+                  {actions.map((action) => (
+                    <option key={action} value={action}>{formatAuditAction(action)}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Record type
+                <select value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)}>
+                  <option value="all">All record types</option>
+                  {entityTypes.map((entityType) => (
+                    <option key={entityType} value={entityType}>{formatAuditEntity(entityType)}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                User
+                <select value={userFilter} onChange={(event) => setUserFilter(event.target.value)}>
+                  <option value="all">All users</option>
+                  {managedUsers.map((managedUser) => (
+                    <option key={managedUser.id} value={managedUser.id}>{managedUser.display_name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
 
-      {filteredEvents.length ? (
-        <div className="audit-list">
-          {filteredEvents.map((event) => (
-            <article className={`audit-card action-${event.action}`} key={event.id}>
-              <div>
-                <span className={`status-chip ${event.action === "delete" ? "culled" : event.action === "update" ? "processed" : "active"}`}>
-                  {formatAuditAction(event.action)}
-                </span>
-                <strong>{formatAuditEntity(event.entity_type)}</strong>
-                <p>{auditSummary(event)}</p>
-              </div>
-              <div className="audit-meta">
-                <b>{event.user_display_name || event.user_email || "Unknown user"}</b>
-                <span>{formatDateTime(event.created_at)}</span>
-              </div>
-            </article>
-          ))}
+          {filteredEvents.length ? (
+            <div className="audit-list">
+              {filteredEvents.map((event) => (
+                <article className={`audit-card action-${event.action}`} key={event.id}>
+                  <div>
+                    <span className={`status-chip ${event.action === "delete" ? "culled" : event.action === "update" ? "processed" : "active"}`}>
+                      {formatAuditAction(event.action)}
+                    </span>
+                    <strong>{formatAuditEntity(event.entity_type)}</strong>
+                    <p>{auditSummary(event)}</p>
+                  </div>
+                  <div className="audit-meta">
+                    <b>{event.user_display_name || event.user_email || "Unknown user"}</b>
+                    <span>{formatDateTime(event.created_at)}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No history matches those filters</h3>
+              <p>New successful changes will appear here automatically.</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="empty-state">
-          <h3>No history matches those filters</h3>
-          <p>New successful changes will appear here automatically.</p>
-        </div>
-      )}
+      </section>
     </section>
   );
 }
@@ -12716,9 +12875,24 @@ function CoopDetail({
             <span className={`status-chip ${coop.type.toLowerCase()}`}>{formatCoopType(coop.type)}</span> · {activeBirds.length} active birds · {coop.capacity ? `${coop.capacity} capacity` : "no capacity set"}
           </p>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to coops
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to coops
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm(`Delete ${coop.name}?`)) {
+                onDeleteCoop(coop.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Coop detail summary">
@@ -12740,10 +12914,17 @@ function CoopDetail({
       </section>
 
       {coop.has_camera ? (
-        <section className="subpanel">
-          <p className="eyebrow">Camera</p>
-          <h3>Live view</h3>
-          <CameraViewer coop={coop} />
+        <section className="subpanel table-section">
+          <div className="table-section-header">
+            <div>
+              <p className="eyebrow">Camera</p>
+              <h3>Live view</h3>
+              <p className="muted compact-copy">Saved camera stream for this coop.</p>
+            </div>
+          </div>
+          <div className="table-card camera-detail-card">
+            <CameraViewer coop={coop} />
+          </div>
         </section>
       ) : null}
 
@@ -12783,19 +12964,6 @@ function CoopDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save coop</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm(`Delete ${coop.name}?`)) {
-                  onDeleteCoop(coop.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
@@ -13813,9 +13981,24 @@ function BirdDetail({
             </p>
           </div>
         </div>
-        <button className="secondary" type="button" onClick={onBack}>
-          Back to flock
-        </button>
+        <div className="detail-header-actions">
+          <button className="secondary" type="button" onClick={onBack}>
+            Back to flock
+          </button>
+          <button
+            className="danger"
+            disabled={busy}
+            type="button"
+            onClick={() => {
+              if (confirm("Delete this bird record?")) {
+                onDeleteBird(bird.id);
+                onBack();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <section className="metric-grid embedded" aria-label="Bird detail summary">
@@ -13860,42 +14043,53 @@ function BirdDetail({
         </article>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Economics</p>
-        <h3>Tracked value breakdown</h3>
-        <p className="muted compact-copy">
-          Bars compare each category against the largest category in this breakdown. They are not goals or targets.
-        </p>
-        <div className="value-chart" aria-label="Bird lifetime value chart">
-          {[
-            { label: "Egg value", value: eggValue, tone: "positive" },
-            { label: "Realized meat value", value: meatValue, tone: "positive" },
-            { label: "Feed cost", value: feedCost, tone: "cost" }
-          ].map((item) => (
-            <article key={item.label}>
-              <div>
-                <strong>{item.label}</strong>
-                <span>{money(item.value)}</span>
-              </div>
-              <div className="value-bar-track">
-                <div
-                  className={`value-bar-fill ${item.tone}`}
-                  style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
-                />
-              </div>
-            </article>
-          ))}
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Economics</p>
+            <h3>Tracked value breakdown</h3>
+            <p className="muted compact-copy">
+              Bars compare each category against the largest category in this breakdown. They are not goals or targets.
+            </p>
+          </div>
         </div>
-        <p className="muted compact-copy">
-          Egg value only includes egg logs tied directly to this bird. Meat value is a one-time realized value after processing or culling, not an ongoing LTV stream.
-        </p>
+        <div className="table-card value-card">
+          <div className="value-chart" aria-label="Bird lifetime value chart">
+            {[
+              { label: "Egg value", value: eggValue, tone: "positive" },
+              { label: "Realized meat value", value: meatValue, tone: "positive" },
+              { label: "Feed cost", value: feedCost, tone: "cost" }
+            ].map((item) => (
+              <article key={item.label}>
+                <div>
+                  <strong>{item.label}</strong>
+                  <span>{money(item.value)}</span>
+                </div>
+                <div className="value-bar-track">
+                  <div
+                    className={`value-bar-fill ${item.tone}`}
+                    style={{ width: `${Math.max(3, (item.value / maxValueBar) * 100)}%` }}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+          <p className="muted compact-copy">
+            Egg value only includes egg logs tied directly to this bird. Meat value is a one-time realized value after processing or culling, not an ongoing LTV stream.
+          </p>
+        </div>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Growth</p>
-        <h3>Weight history by age</h3>
-        {growthPoints.length ? (
-          <>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Growth</p>
+            <h3>Weight history by age</h3>
+            <p className="muted compact-copy">Weight logs are plotted by age from hatch date, not calendar date.</p>
+          </div>
+        </div>
+        <div className="table-card value-card">
+          {growthPoints.length ? (
             <div className="growth-chart" aria-label="Bird weight history chart">
               {growthPoints.map((log) => (
                 <article key={log.id}>
@@ -13910,23 +14104,27 @@ function BirdDetail({
                 </article>
               ))}
             </div>
-            <p className="muted compact-copy">
-              Chart positions are labeled by age from hatch date, so birds can be compared by age rather than calendar date later.
-            </p>
-          </>
-        ) : (
-          <p className="muted">No weight history yet. Add a weigh-in below to start the growth curve.</p>
-        )}
+          ) : (
+            <div className="empty-state">
+              <h3>No weight history yet</h3>
+              <p>Add a weigh-in below to start the growth curve.</p>
+            </div>
+          )}
+        </div>
       </section>
 
-      <section className="subpanel">
-        <p className="eyebrow">Cohort comparison</p>
-        <h3>Growth against hatch mates</h3>
-        {cohortAgeBuckets.length && cohortBirds.length > 1 ? (
-          <>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Cohort comparison</p>
+            <h3>Growth against hatch mates</h3>
             <p className="muted compact-copy">
-              Comparing {cohortBirds.length} birds from {cohortLabel}. Points are grouped by age, not calendar date.
+              Comparing {cohortBirds.length} birds from {cohortLabel}. Points are grouped by age.
             </p>
+          </div>
+        </div>
+        <div className="table-card value-card">
+          {cohortAgeBuckets.length && cohortBirds.length > 1 ? (
             <div className="cohort-chart" aria-label="Cohort weight comparison chart">
               {cohortAgeBuckets.map((bucket) => {
                 const ownLog = bucket.logs.find((log) => log.bird_id === bird.id);
@@ -13974,137 +14172,153 @@ function BirdDetail({
                 );
               })}
             </div>
-          </>
-        ) : (
-          <p className="muted">
-            Add weight logs for more birds in {cohortLabel} to compare growth by age.
-          </p>
-        )}
+          ) : (
+            <div className="empty-state">
+              <h3>No cohort comparison yet</h3>
+              <p>Add weight logs for more birds in {cohortLabel} to compare growth by age.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       {onCreateWeightLog ? (
-        <section className="subpanel">
-          <p className="eyebrow">Weigh-in</p>
-          <h3>Log weight</h3>
-          <form className="feed-form" onSubmit={onCreateWeightLog}>
-            <input name="birdId" type="hidden" defaultValue={bird.id} />
-            <label>
-              Weighed on
-              <input name="weighedOn" required type="date" defaultValue={dateKeyDaysAgo(0)} />
-            </label>
-            <label>
-              Weight, oz
-              <input name="weightOz" required type="number" min="0.1" step="0.1" defaultValue={latestWeightLog?.weight_oz ?? bird.current_weight_oz ?? ""} />
-            </label>
-            <label className="wide-field">
-              Notes
-              <input name="notes" placeholder="Handling, condition, scale notes..." />
-            </label>
-            <button disabled={busy} type="submit">
-              {busy ? "Saving..." : "Log weight"}
-            </button>
-          </form>
-        {birdWeightLogs.length ? (
-          <div className="source-summary weight-log-summary">
-            {birdWeightLogs
-              .slice()
-              .reverse()
-              .map((log) => (
-                <article key={log.id}>
-                  <div>
-                    <strong>{numberValue(log.weight_oz).toFixed(1)} oz</strong>
-                    <span>
-                      {displayDate(log.weighed_on)} · {ageLabelFromDays(ageDaysOn(bird.hatch_date, log.weighed_on))}
-                      {log.notes ? ` · ${log.notes}` : ""}
-                    </span>
-                  </div>
-                  <button
-                    className="danger"
-                    disabled={busy || !onDeleteWeightLog}
-                    type="button"
-                    onClick={() => {
-                      if (onDeleteWeightLog && confirm("Delete this weight log?")) onDeleteWeightLog(log.id);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </article>
-              ))}
+        <section className="subpanel table-section">
+          <div className="table-section-header">
+            <div>
+              <p className="eyebrow">Weigh-in</p>
+              <h3>Log weight</h3>
+              <p className="muted compact-copy">Add a new weight point for this bird's growth history.</p>
+            </div>
           </div>
-        ) : null}
+          <div className="table-card card-list-table">
+            <form className="feed-form card-form" onSubmit={onCreateWeightLog}>
+              <input name="birdId" type="hidden" defaultValue={bird.id} />
+              <label>
+                Weighed on
+                <input name="weighedOn" required type="date" defaultValue={dateKeyDaysAgo(0)} />
+              </label>
+              <label>
+                Weight, oz
+                <input name="weightOz" required type="number" min="0.1" step="0.1" defaultValue={latestWeightLog?.weight_oz ?? bird.current_weight_oz ?? ""} />
+              </label>
+              <label className="wide-field">
+                Notes
+                <input name="notes" placeholder="Handling, condition, scale notes..." />
+              </label>
+              <button disabled={busy} type="submit">
+                {busy ? "Saving..." : "Log weight"}
+              </button>
+            </form>
+            {birdWeightLogs.length ? (
+              <div className="source-summary weight-log-summary">
+                {birdWeightLogs
+                  .slice()
+                  .reverse()
+                  .map((log) => (
+                    <article key={log.id}>
+                      <div>
+                        <strong>{numberValue(log.weight_oz).toFixed(1)} oz</strong>
+                        <span>
+                          {displayDate(log.weighed_on)} · {ageLabelFromDays(ageDaysOn(bird.hatch_date, log.weighed_on))}
+                          {log.notes ? ` · ${log.notes}` : ""}
+                        </span>
+                      </div>
+                      <button
+                        className="danger"
+                        disabled={busy || !onDeleteWeightLog}
+                        type="button"
+                        onClick={() => {
+                          if (onDeleteWeightLog && confirm("Delete this weight log?")) onDeleteWeightLog(log.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </article>
+                  ))}
+              </div>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
-      <section className="subpanel">
-        <p className="eyebrow">Lineage</p>
-        <h3>Family tree</h3>
-        {hatchBatch || bird.breeding_line_name ? (
-          <div className="lineage-tree">
-            <div className="lineage-level lineage-parents">
-              <div className="lineage-node parent">
-                <span>Sire</span>
-                {sireBird && onOpenRecord ? (
-                  <button className="link-button lineage-link" type="button" onClick={() => onOpenRecord({ type: "bird", id: sireBird.id })}>
-                    {birdLabel(sireBird)}
-                  </button>
-                ) : (
-                  <strong>{matingPeriod?.sire_label || "Unknown sire"}</strong>
-                )}
-                <small>Known male for this pen period</small>
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Lineage</p>
+            <h3>Family tree</h3>
+            <p className="muted compact-copy">Shows known sire and hen-group context from the hatch batch and mating period.</p>
+          </div>
+        </div>
+        <div className="table-card value-card">
+          {hatchBatch || bird.breeding_line_name ? (
+            <div className="lineage-tree">
+              <div className="lineage-level lineage-parents">
+                <div className="lineage-node parent">
+                  <span>Sire</span>
+                  {sireBird && onOpenRecord ? (
+                    <button className="link-button lineage-link" type="button" onClick={() => onOpenRecord({ type: "bird", id: sireBird.id })}>
+                      {birdLabel(sireBird)}
+                    </button>
+                  ) : (
+                    <strong>{matingPeriod?.sire_label || "Unknown sire"}</strong>
+                  )}
+                  <small>Known male for this pen period</small>
+                </div>
+                <div className="lineage-node parent">
+                  <span>Hen group</span>
+                  {henBirds.length && onOpenRecord ? (
+                    <div className="lineage-link-list">
+                      {henBirds.map((hen) => (
+                        <button key={hen.id} className="link-button lineage-link" type="button" onClick={() => onOpenRecord({ type: "bird", id: hen.id })}>
+                          {birdLabel(hen)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <strong>{henLabels}</strong>
+                  )}
+                  <small>{matingPeriod ? `${matingPeriod.hen_count} hens in group` : "Individual dam is intentionally not assumed"}</small>
+                </div>
               </div>
-              <div className="lineage-node parent">
-                <span>Hen group</span>
-                {henBirds.length && onOpenRecord ? (
-                  <div className="lineage-link-list">
-                    {henBirds.map((hen) => (
-                      <button key={hen.id} className="link-button lineage-link" type="button" onClick={() => onOpenRecord({ type: "bird", id: hen.id })}>
-                        {birdLabel(hen)}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <strong>{henLabels}</strong>
-                )}
-                <small>{matingPeriod ? `${matingPeriod.hen_count} hens in group` : "Individual dam is intentionally not assumed"}</small>
-              </div>
-            </div>
 
-            <div className="lineage-level">
-              <div className="lineage-node current">
-                <span>Bird</span>
-                <strong>{bird.band || bird.name || "Unbanded bird"}</strong>
-                <small>{formatBirdSex(bird.sex)} · {formatBirdStatus(bird.status)} · hatched {displayDate(hatchBatch?.hatch_date || bird.hatch_date, "unknown")}</small>
-                <div className="lineage-context">
-                  {breedingLineId && onOpenRecord ? (
-                    <button type="button" onClick={() => onOpenRecord({ type: "breedingLine", id: breedingLineId })}>
-                      Line: {breedingLineName}
-                    </button>
-                  ) : (
-                    <span>Line: {breedingLineName}</span>
-                  )}
-                  {hatchBatch?.mating_period_id && onOpenRecord ? (
-                    <button type="button" onClick={() => onOpenRecord({ type: "matingPeriod", id: hatchBatch.mating_period_id! })}>
-                      Period: {hatchBatch.mating_period_label || matingPeriod?.label || "Unknown"}
-                    </button>
-                  ) : (
-                    <span>Period: {hatchBatch?.mating_period_label || matingPeriod?.label || "Unknown"}</span>
-                  )}
-                  {hatchBatch && onOpenRecord ? (
-                    <button type="button" onClick={() => onOpenRecord({ type: "hatchBatch", id: hatchBatch.id })}>
-                      Batch: {hatchBatch.label}
-                    </button>
-                  ) : (
-                    <span>Batch: {bird.hatch_batch_label || "No hatch batch linked"}</span>
-                  )}
+              <div className="lineage-level">
+                <div className="lineage-node current">
+                  <span>Bird</span>
+                  <strong>{bird.band || bird.name || "Unbanded bird"}</strong>
+                  <small>{formatBirdSex(bird.sex)} · {formatBirdStatus(bird.status)} · hatched {displayDate(hatchBatch?.hatch_date || bird.hatch_date, "unknown")}</small>
+                  <div className="lineage-context">
+                    {breedingLineId && onOpenRecord ? (
+                      <button type="button" onClick={() => onOpenRecord({ type: "breedingLine", id: breedingLineId })}>
+                        Line: {breedingLineName}
+                      </button>
+                    ) : (
+                      <span>Line: {breedingLineName}</span>
+                    )}
+                    {hatchBatch?.mating_period_id && onOpenRecord ? (
+                      <button type="button" onClick={() => onOpenRecord({ type: "matingPeriod", id: hatchBatch.mating_period_id! })}>
+                        Period: {hatchBatch.mating_period_label || matingPeriod?.label || "Unknown"}
+                      </button>
+                    ) : (
+                      <span>Period: {hatchBatch?.mating_period_label || matingPeriod?.label || "Unknown"}</span>
+                    )}
+                    {hatchBatch && onOpenRecord ? (
+                      <button type="button" onClick={() => onOpenRecord({ type: "hatchBatch", id: hatchBatch.id })}>
+                        Batch: {hatchBatch.label}
+                      </button>
+                    ) : (
+                      <span>Batch: {bird.hatch_batch_label || "No hatch batch linked"}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <p className="muted">
-            No hatch batch or breeding line is linked yet. Birds created from hatch batches will show sire and hen group context here.
-          </p>
-        )}
+          ) : (
+            <div className="empty-state">
+              <h3>No lineage yet</h3>
+              <p>No hatch batch or breeding line is linked yet. Birds created from hatch batches will show sire and hen group context here.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       <CreateRecordPanel buttonLabel="Edit bird" eyebrow="Record" title="Edit bird">
@@ -14153,19 +14367,6 @@ function BirdDetail({
           </label>
           <div className="row-actions">
             <button disabled={busy} type="submit">Save bird</button>
-            <button
-              className="danger"
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                if (confirm("Delete this bird record?")) {
-                  onDeleteBird(bird.id);
-                  onBack();
-                }
-              }}
-            >
-              Delete
-            </button>
           </div>
         </form>
       </CreateRecordPanel>
