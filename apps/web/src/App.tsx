@@ -5582,7 +5582,6 @@ function EggManager({
             </div>
           )}
         </div>
-        </div>
       </section>
     </section>
   );
