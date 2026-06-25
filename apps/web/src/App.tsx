@@ -5582,6 +5582,7 @@ function EggManager({
             </div>
           )}
         </div>
+        </div>
       </section>
     </section>
   );
@@ -6126,7 +6127,6 @@ function IncubationManager({
               <p>Record a hatched count on an incubation and Covey will create the hatch batch automatically.</p>
             </div>
           )}
-        </div>
         </div>
       </section>
 	    </section>
