@@ -79,7 +79,7 @@ When a slice is completed, update this backlog before moving to the next one.
    - [x] Sales/revenue tracking for eggs, fertile eggs, birds, meat, and mating-period outcomes
    - [x] External calendar sync/iCal export for reminders and optional chores
    - [x] Bird variety/breed type profiles with per-type targets for process age, weight, egg goals, and breeder selection
-   - [ ] Printable report layouts and saved report presets
+   - [x] Printable report layouts and saved report presets
    - [ ] CSV export/import helpers for common tables
    - [ ] Inventory beyond feed
    - [ ] Breeding decision simulator
@@ -130,4 +130,4 @@ When a slice is completed, update this backlog before moving to the next one.
 
 ## Next Immediate Slice
 
-Printable report layouts and saved report presets: make report outputs easier to save, print, and repeat without rebuilding filters every time.
+CSV import helpers: add guided imports for common tables so bulk entry does not require hand-entering every bird, feed purchase, or egg log.

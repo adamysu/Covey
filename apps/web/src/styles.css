@@ -2987,6 +2987,34 @@ h2 {
   margin: 0;
 }
 
+.report-actions,
+.report-preset-panel {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.report-preset-panel {
+  border-bottom: 1px solid rgba(49, 65, 43, 0.1);
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+}
+
+.report-preset-panel > div {
+  flex: 1 1 220px;
+}
+
+.report-preset-panel strong,
+.report-preset-panel span {
+  display: block;
+}
+
+.report-preset-panel span {
+  color: #657458;
+  font-size: 0.88rem;
+}
+
 .report-table-wrap {
   overflow-x: auto;
   background: rgba(255, 252, 244, 0.62);
@@ -3901,6 +3929,7 @@ h2 {
 	:root:not([data-theme="light"]) .calendar-filter-panel,
 	:root:not([data-theme="light"]) .calendar-day-detail,
 	:root:not([data-theme="light"]) .report-controls,
+	:root:not([data-theme="light"]) .report-preset-panel,
 	:root:not([data-theme="light"]) .report-table-wrap,
 	:root:not([data-theme="light"]) .audit-card,
 :root:not([data-theme="light"]) .cycle-card {
@@ -4104,6 +4133,7 @@ h2 {
 	:root[data-theme="dark"] .calendar-filter-panel,
 	:root[data-theme="dark"] .calendar-day-detail,
 	:root[data-theme="dark"] .report-controls,
+	:root[data-theme="dark"] .report-preset-panel,
 	:root[data-theme="dark"] .report-table-wrap,
 	:root[data-theme="dark"] .audit-card,
 :root[data-theme="dark"] .cycle-card {
@@ -4276,8 +4306,10 @@ h2 {
   .sidebar,
   .app-topbar,
   .theme-toggle,
-  .report-controls,
-  .dashboard-header button,
+	  .report-controls,
+	  .report-preset-panel,
+	  .report-actions,
+	  .dashboard-header button,
   .notice {
     display: none !important;
   }

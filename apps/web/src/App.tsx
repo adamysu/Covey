@@ -356,6 +356,17 @@ type RestockSortKey = "date" | "feed" | "amount" | "cups" | "cost" | "cupCost";
 type SettingsTab = "homestead" | "flock" | "tracking" | "value" | "incubation" | "data" | "users";
 type CameraPlayerSize = "compact" | "standard" | "large";
 type CameraGridPreset = "auto" | "2" | "4";
+type ReportPreset = {
+  id: string;
+  name: string;
+  reportKind: ReportKind;
+  fromDate: string;
+  toDate: string;
+  coopId: string;
+  breedingLineId: string;
+  status: string;
+  createdAt: string;
+};
 type ReportKind = "eggs" | "feed" | "sales" | "incubation" | "breeding" | "birdValue" | "health" | "dataQuality";
 type DashboardSection =
   | "overview"
@@ -12076,12 +12087,69 @@ function ReportsManager({
 }) {
   const [reportKind, setReportKind] = useState<ReportKind>("eggs");
   const [fromDate, setFromDate] = useState(dateKeyAddDays(dateKeyDaysAgo(0), -30));
-  const [toDate, setToDate] = useState(dateKeyDaysAgo(0));
-  const [coopId, setCoopId] = useState("all");
-  const [breedingLineId, setBreedingLineId] = useState("all");
-  const [status, setStatus] = useState("all");
-  const tableEggValue = preferenceNumber(homestead, "valueTableEgg", 0.35);
-  const meatValuePerOz = preferenceNumber(homestead, "valueMeatPerOz", 0.5);
+    const [toDate, setToDate] = useState(dateKeyDaysAgo(0));
+    const [coopId, setCoopId] = useState("all");
+    const [breedingLineId, setBreedingLineId] = useState("all");
+    const [status, setStatus] = useState("all");
+    const [presetName, setPresetName] = useState("");
+    const [selectedPresetId, setSelectedPresetId] = useState("");
+    const [savedReportPresets, setSavedReportPresets] = useState<ReportPreset[]>(() => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("coveyReportPresets") ?? "[]") as ReportPreset[];
+        return parsed.filter((preset) => preset.id && preset.name && preset.reportKind);
+      } catch {
+        return [];
+      }
+    });
+    const tableEggValue = preferenceNumber(homestead, "valueTableEgg", 0.35);
+    const meatValuePerOz = preferenceNumber(homestead, "valueMeatPerOz", 0.5);
+
+    useEffect(() => {
+      localStorage.setItem("coveyReportPresets", JSON.stringify(savedReportPresets));
+    }, [savedReportPresets]);
+
+    function currentReportPreset(name: string, id = crypto.randomUUID()): ReportPreset {
+      return {
+        id,
+        name: name.trim(),
+        reportKind,
+        fromDate,
+        toDate,
+        coopId,
+        breedingLineId,
+        status,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    function applyReportPreset(preset: ReportPreset) {
+      setReportKind(preset.reportKind);
+      setFromDate(preset.fromDate);
+      setToDate(preset.toDate);
+      setCoopId(preset.coopId);
+      setBreedingLineId(preset.breedingLineId);
+      setStatus(preset.status);
+      setPresetName(preset.name);
+      setSelectedPresetId(preset.id);
+    }
+
+    function saveReportPreset() {
+      const name = presetName.trim();
+      if (!name) return;
+      const existing = savedReportPresets.find((preset) => preset.name.toLowerCase() === name.toLowerCase());
+      const nextPreset = currentReportPreset(name, existing?.id);
+      setSavedReportPresets((current) => {
+        if (existing) return current.map((preset) => (preset.id === existing.id ? nextPreset : preset));
+        return [...current, nextPreset].sort((a, b) => compareValues(a.name, b.name));
+      });
+      setSelectedPresetId(nextPreset.id);
+    }
+
+    function deleteSelectedReportPreset() {
+      if (!selectedPresetId) return;
+      setSavedReportPresets((current) => current.filter((preset) => preset.id !== selectedPresetId));
+      setSelectedPresetId("");
+    }
 
   const inRange = (value: string | null | undefined) => {
     const key = normalizeDateKey(value);
@@ -12262,21 +12330,26 @@ function ReportsManager({
 
   return (
     <section className="panel">
-      <div className="dashboard-header">
-        <div>
-          <p className="eyebrow">Reports</p>
-          <h2>Performance reports</h2>
-          <p className="muted">Filter reports, compare performance, and export the current view to CSV.</p>
+        <div className="dashboard-header">
+          <div>
+            <p className="eyebrow">Reports</p>
+            <h2>Performance reports</h2>
+            <p className="muted">Filter reports, save repeatable views, print the current layout, or export the table to CSV.</p>
+          </div>
+          <div className="report-actions">
+            <button className="secondary" disabled={!reportRows.length} type="button" onClick={() => window.print()}>
+              Print
+            </button>
+            <button
+              className="secondary"
+              disabled={!reportRows.length}
+              type="button"
+              onClick={() => downloadCsv(`covey-${reportKind}-report-${dateKeyDaysAgo(0)}.csv`, reportRows)}
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
-        <button
-          className="secondary"
-          disabled={!reportRows.length}
-          type="button"
-          onClick={() => downloadCsv(`covey-${reportKind}-report-${dateKeyDaysAgo(0)}.csv`, reportRows)}
-        >
-          Export CSV
-        </button>
-      </div>
 
       <section className="metric-grid embedded" aria-label="Report summary">
         <article className="metric-card">
@@ -12314,9 +12387,48 @@ function ReportsManager({
             <p className="muted compact-copy">{reportRows.length} rows match the current filters.</p>
           </div>
         </div>
-        <div className="table-card">
-          <div className="table-control-panel">
-            <div className="report-controls">
+          <div className="table-card">
+            <div className="table-control-panel">
+              <div className="report-preset-panel">
+                <div>
+                  <p className="eyebrow">Saved views</p>
+                  <strong>Report presets</strong>
+                  <span>Save the current report type, dates, coop, line, and status filters.</span>
+                </div>
+                <label>
+                  Preset name
+                  <input
+                    value={presetName}
+                    placeholder="Monthly feed cost"
+                    onChange={(event) => setPresetName(event.target.value)}
+                  />
+                </label>
+                <button className="secondary" disabled={!presetName.trim()} type="button" onClick={saveReportPreset}>
+                  Save preset
+                </button>
+                <label>
+                  Load preset
+                  <select
+                    value={selectedPresetId}
+                    onChange={(event) => {
+                      const preset = savedReportPresets.find((candidate) => candidate.id === event.target.value);
+                      if (preset) applyReportPreset(preset);
+                      else setSelectedPresetId("");
+                    }}
+                  >
+                    <option value="">Choose saved view</option>
+                    {savedReportPresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="secondary" disabled={!selectedPresetId} type="button" onClick={deleteSelectedReportPreset}>
+                  Delete preset
+                </button>
+              </div>
+              <div className="report-controls">
               <label>
                 Report type
                 <select value={reportKind} onChange={(event) => setReportKind(event.target.value as ReportKind)}>
