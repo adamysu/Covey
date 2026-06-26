@@ -2041,6 +2041,26 @@ h2 {
   font-size: 1.35rem;
 }
 
+.wide-settings-card {
+  grid-column: 1 / -1;
+}
+
+.profile-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-editor-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(120px, 0.8fr)) auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid rgba(49, 65, 43, 0.12);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(250, 245, 232, 0.54);
+}
+
 .settings-actions {
   display: flex;
   justify-content: flex-end;
@@ -3751,9 +3771,13 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .wide-field,
-  .bulk-edit-form .row-actions {
-    grid-column: auto;
+	  .wide-field,
+	  .bulk-edit-form .row-actions {
+	    grid-column: auto;
+	  }
+
+  .profile-editor-row {
+    grid-template-columns: 1fr;
   }
 
   .source-summary article,

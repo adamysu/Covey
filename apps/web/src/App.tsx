@@ -1046,9 +1046,29 @@ const defaultBirdTypeProfiles = [
   "Celadon | 8 | 8 | 5"
 ].join("\n");
 
+const defaultBirdTypeProfileRows: BirdTypeProfile[] = [
+  { name: "Standard Coturnix", minProcessAgeWeeks: 8, targetLiveWeightOz: 8, eggGoalPerWeek: 5 },
+  { name: "Jumbo Coturnix", minProcessAgeWeeks: 8, targetLiveWeightOz: 10, eggGoalPerWeek: 5 },
+  { name: "Celadon", minProcessAgeWeeks: 8, targetLiveWeightOz: 8, eggGoalPerWeek: 5 }
+];
+
+function birdTypeProfilesPreference(rows: BirdTypeProfile[]) {
+  return rows
+    .filter((row) => row.name.trim())
+    .map((row) =>
+      [
+        row.name.trim(),
+        row.minProcessAgeWeeks ?? "",
+        row.targetLiveWeightOz ?? "",
+        row.eggGoalPerWeek ?? ""
+      ].join(" | ")
+    )
+    .join("\n");
+}
+
 function parseBirdTypeProfiles(homestead: Homestead | undefined): BirdTypeProfile[] {
   const raw = String(homestead?.preferences.birdTypeProfiles ?? defaultBirdTypeProfiles);
-  return raw
+  const parsed = raw
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
@@ -1066,6 +1086,7 @@ function parseBirdTypeProfiles(homestead: Homestead | undefined): BirdTypeProfil
       };
     })
     .filter((profile): profile is BirdTypeProfile => Boolean(profile));
+  return parsed.length ? parsed : defaultBirdTypeProfileRows;
 }
 
 function birdTypeOptions(birds: Bird[], homestead: Homestead | undefined) {
@@ -4083,6 +4104,89 @@ function HomesteadSettingsFields({
         </>
       ) : null}
     </>
+  );
+}
+
+function BirdTypeProfileEditor({ homestead }: { homestead: Homestead }) {
+  const [profiles, setProfiles] = useState<BirdTypeProfile[]>(() => parseBirdTypeProfiles(homestead));
+
+  function updateProfile(index: number, patch: Partial<BirdTypeProfile>) {
+    setProfiles((current) =>
+      current.map((profile, currentIndex) => (currentIndex === index ? { ...profile, ...patch } : profile))
+    );
+  }
+
+  function numberOrNull(value: string) {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return (
+    <div className="profile-editor">
+      <input name="birdTypeProfiles" readOnly type="hidden" value={birdTypeProfilesPreference(profiles)} />
+      {profiles.map((profile, index) => (
+        <article className="profile-editor-row" key={`bird-type-profile-${index}`}>
+          <label>
+            Type name
+            <input
+              value={profile.name}
+              placeholder="Jumbo White"
+              onChange={(event) => updateProfile(index, { name: event.target.value })}
+            />
+          </label>
+          <label>
+            Process age, weeks
+            <input
+              min="1"
+              type="number"
+              value={profile.minProcessAgeWeeks ?? ""}
+              onChange={(event) => updateProfile(index, { minProcessAgeWeeks: numberOrNull(event.target.value) })}
+            />
+          </label>
+          <label>
+            Target weight, oz
+            <input
+              min="0"
+              step="0.1"
+              type="number"
+              value={profile.targetLiveWeightOz ?? ""}
+              onChange={(event) => updateProfile(index, { targetLiveWeightOz: numberOrNull(event.target.value) })}
+            />
+          </label>
+          <label>
+            Egg goal / week
+            <input
+              min="0"
+              step="0.1"
+              type="number"
+              value={profile.eggGoalPerWeek ?? ""}
+              onChange={(event) => updateProfile(index, { eggGoalPerWeek: numberOrNull(event.target.value) })}
+            />
+          </label>
+          <button
+            className="secondary"
+            disabled={profiles.length <= 1}
+            type="button"
+            onClick={() => setProfiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+          >
+            Remove
+          </button>
+        </article>
+      ))}
+      <button
+        className="secondary"
+        type="button"
+        onClick={() =>
+          setProfiles((current) => [
+            ...current,
+            { name: "", minProcessAgeWeeks: null, targetLiveWeightOz: null, eggGoalPerWeek: null }
+          ])
+        }
+      >
+        Add bird type
+      </button>
+    </div>
   );
 }
 
@@ -8220,16 +8324,9 @@ function SettingsManager({
             <p className="eyebrow">Bird types</p>
             <h3>Variety profiles</h3>
             <p className="muted compact-copy">
-              One type per line: name | processing age weeks | target live weight oz | egg goal per week. Weight targets are optional context, not required for Covey to stay useful.
+              Add the types you keep and the targets Covey should use for age-based recommendations. Weight targets are optional context, not required.
             </p>
-            <label>
-              Type profiles
-              <textarea
-                name="birdTypeProfiles"
-                defaultValue={displayPreference(homestead, "birdTypeProfiles", defaultBirdTypeProfiles)}
-                rows={5}
-              />
-            </label>
+            <BirdTypeProfileEditor homestead={homestead} />
           </article>
           <article className="settings-card">
             <p className="eyebrow">Breeding balance</p>
@@ -12108,9 +12205,9 @@ function ReportsManager({
       localStorage.setItem("coveyReportPresets", JSON.stringify(savedReportPresets));
     }, [savedReportPresets]);
 
-    function currentReportPreset(name: string, id = crypto.randomUUID()): ReportPreset {
+    function currentReportPreset(name: string, id?: string): ReportPreset {
       return {
-        id,
+        id: id ?? crypto.randomUUID(),
         name: name.trim(),
         reportKind,
         fromDate,
