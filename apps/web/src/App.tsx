@@ -211,6 +211,33 @@ type HealthEvent = {
   follow_up_on: string | null;
 };
 
+type RecordEventCategory = "NOTE" | "MOVEMENT" | "BEHAVIOR" | "BREEDING" | "PROCESSING" | "LOSS" | "OTHER";
+type RecordEventEntity = "BIRD" | "COOP" | "MATING_PERIOD";
+type IncidentOutcome = "WATCH" | "SEPARATED" | "MOVED" | "PROCESSED" | "CULLED" | "RETIRED" | "NO_CHANGE";
+type IncidentInput = {
+  birdIds: string[];
+  happenedOn: string;
+  title: string;
+  category: RecordEventCategory;
+  outcome: IncidentOutcome;
+  coopId: string;
+  notes: string;
+  followUpDate: string;
+  followUpPriority: WorkItemPriority;
+};
+
+type RecordEvent = {
+  id: string;
+  bird_id: string | null;
+  coop_id: string | null;
+  mating_period_id: string | null;
+  happened_on: string;
+  category: RecordEventCategory;
+  title: string;
+  notes: string | null;
+  created_by_name: string | null;
+};
+
 type PhotoEntityType = "BIRD" | "FEED" | "HEALTH_EVENT";
 
 type PhotoAttachment = {
@@ -378,6 +405,7 @@ type DashboardSection =
   | "feed"
   | "sales"
   | "health"
+  | "incidents"
   | "incubation"
   | "breeding"
   | "todos"
@@ -397,6 +425,7 @@ const dashboardSections: DashboardSection[] = [
   "feed",
   "sales",
   "health",
+  "incidents",
   "incubation",
   "breeding",
   "todos",
@@ -780,6 +809,7 @@ function sectionTitle(section: DashboardSection) {
     feed: "Feed tracking",
     sales: "Sales",
     health: "Health",
+    incidents: "Incidents",
     incubation: "Incubation",
     breeding: "Breeding lines",
     todos: "To do",
@@ -4458,6 +4488,7 @@ function Dashboard({
     { id: "feed", label: "Feed", icon: "⌁" },
     { id: "sales", label: "Sales", icon: "$" },
     { id: "health", label: "Health", icon: "✚" },
+    { id: "incidents", label: "Incidents", icon: "!" },
     { id: "incubation", label: "Incubation", icon: "◒" },
     { id: "breeding", label: "Breeding lines", icon: "⋔" },
     { id: "todos", label: "To do", icon: "✓", badge: visibleTodoItems.length },
@@ -4520,6 +4551,61 @@ function Dashboard({
 
   function restoreWorkItems(kind: "todos" | "recommendations") {
     setDismissedWorkItemIds((current) => current.filter((id) => !id.startsWith(`${kind}:`)));
+  }
+
+  async function logIncident(input: IncidentInput) {
+    if (!input.birdIds.length) return;
+    const selectedBirds = birds.filter((bird) => input.birdIds.includes(bird.id));
+    const selectedLabels = selectedBirds.map(birdLabel).join(", ");
+    const outcomeLabel = incidentOutcomeLabel(input.outcome);
+    const notes = [
+      input.notes,
+      outcomeLabel !== "Watch only" ? `Action: ${outcomeLabel}.` : "",
+      selectedLabels ? `Birds involved: ${selectedLabels}.` : ""
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await Promise.all(
+      input.birdIds.map((birdId) =>
+        apiRequest<{ recordEvent: { id: string } }>("/record-events", {
+          method: "POST",
+          body: JSON.stringify({
+            entityType: "BIRD",
+            entityId: birdId,
+            happenedOn: input.happenedOn,
+            category: input.category,
+            title: input.title,
+            notes
+          })
+        })
+      )
+    );
+
+    const patch: Partial<Pick<Bird, "status">> & { coopId?: string | null } = {};
+    if (input.outcome === "PROCESSED" || input.outcome === "CULLED" || input.outcome === "RETIRED") {
+      patch.status = input.outcome;
+      patch.coopId = null;
+    } else if ((input.outcome === "SEPARATED" || input.outcome === "MOVED") && input.coopId !== "NO_CHANGE") {
+      patch.coopId = input.coopId === "none" ? null : input.coopId;
+    }
+
+    if (Object.keys(patch).length) await onBulkUpdateBirds(input.birdIds, patch);
+
+    if (input.followUpDate) {
+      const label = selectedBirds.length === 1 && selectedBirds[0] ? birdLabel(selectedBirds[0]) : `${selectedBirds.length} birds`;
+      const item: CustomWorkItem = {
+        id: createLocalId("incident-followup"),
+        title: `Follow up: ${input.title}`,
+        detail: `Check ${label}. ${input.notes || outcomeLabel}`,
+        priority: input.followUpPriority,
+        dueDate: input.followUpDate,
+        section: "incidents",
+        completedAt: null,
+        createdAt: new Date().toISOString()
+      };
+      setCustomWorkItems((current) => [item, ...current]);
+    }
   }
 
   function openRecord(target: RecordTarget) {
@@ -4758,6 +4844,16 @@ function Dashboard({
           onDeletePhoto={onDeletePhoto}
           onCreatePhoto={onCreatePhoto}
           onUpdateHealthEvent={onUpdateHealthEvent}
+        />
+      ) : null}
+
+      {section === "incidents" ? (
+        <IncidentManager
+          birds={birds}
+          busy={busy}
+          coops={coops}
+          onLogIncident={logIncident}
+          onNavigate={setSection}
         />
       ) : null}
 
@@ -7557,6 +7653,8 @@ function MatingPeriodDetail({
           )}
         </section>
       </div>
+
+      <RecordHistory busy={busy} entityId={period.id} entityType="MATING_PERIOD" />
 
       <CreateRecordPanel buttonLabel="Edit mating period" eyebrow="Record" title="Edit mating period">
         <form
@@ -11023,6 +11121,242 @@ function CustomTaskForm({ onCreateCustom }: { onCreateCustom: (event: FormEvent<
   );
 }
 
+const incidentOutcomeOptions: Array<{ value: IncidentOutcome; label: string; detail: string }> = [
+  { value: "WATCH", label: "Watch only", detail: "Log the event and keep the birds active where they are." },
+  { value: "SEPARATED", label: "Separated", detail: "Move selected birds to another coop or no coop." },
+  { value: "MOVED", label: "Moved", detail: "Record a move that was not necessarily behavior-related." },
+  { value: "PROCESSED", label: "Processed", detail: "Mark selected birds processed and remove them from a coop." },
+  { value: "CULLED", label: "Culled", detail: "Mark selected birds culled and remove them from a coop." },
+  { value: "RETIRED", label: "Retired", detail: "Mark selected birds retired and remove them from active coop assignments." },
+  { value: "NO_CHANGE", label: "Log only", detail: "Only create history entries." }
+];
+
+function incidentOutcomeLabel(outcome: IncidentOutcome) {
+  return incidentOutcomeOptions.find((option) => option.value === outcome)?.label ?? outcome;
+}
+
+function IncidentManager({
+  birds,
+  busy,
+  coops,
+  onLogIncident,
+  onNavigate
+}: {
+  birds: Bird[];
+  busy: boolean;
+  coops: Coop[];
+  onLogIncident: (input: IncidentInput) => Promise<void>;
+  onNavigate: (section: DashboardSection) => void;
+}) {
+  const activeBirds = birds.filter((bird) => bird.status === "ACTIVE");
+  const maleBirds = activeBirds.filter((bird) => bird.sex === "MALE");
+  const [selectedBirdIds, setSelectedBirdIds] = useState<string[]>([]);
+  const [outcome, setOutcome] = useState<IncidentOutcome>("SEPARATED");
+  const [message, setMessage] = useState("");
+  const selectedBirds = birds.filter((bird) => selectedBirdIds.includes(bird.id));
+  const selectedBirdSummary =
+    selectedBirds.length === 1 && selectedBirds[0] ? birdLabel(selectedBirds[0]) : `${selectedBirds.length} bird records`;
+  const needsDestination = outcome === "SEPARATED" || outcome === "MOVED";
+
+  function toggleBird(id: string) {
+    setSelectedBirdIds((current) =>
+      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]
+    );
+  }
+
+  async function submitIncident(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const title = fieldValue(form, "title");
+    if (!selectedBirdIds.length) {
+      setMessage("Select at least one bird involved in the incident.");
+      return;
+    }
+    if (!title) {
+      setMessage("Add a short title so this is easy to recognize later.");
+      return;
+    }
+
+    setMessage("");
+    try {
+      await onLogIncident({
+        birdIds: selectedBirdIds,
+        happenedOn: fieldValue(form, "happenedOn") || dateKeyDaysAgo(0),
+        title,
+        category: fieldValue(form, "category") as RecordEventCategory,
+        outcome,
+        coopId: fieldValue(form, "coopId") || "NO_CHANGE",
+        notes: fieldValue(form, "notes"),
+        followUpDate: fieldValue(form, "followUpDate"),
+        followUpPriority: fieldValue(form, "followUpPriority") as WorkItemPriority
+      });
+      form.reset();
+      setSelectedBirdIds([]);
+      setOutcome("SEPARATED");
+      setMessage("Incident logged.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not log incident.");
+    }
+  }
+
+  return (
+    <section className="panel incident-page">
+      <div className="dashboard-header">
+        <div>
+          <p className="eyebrow">Incidents</p>
+          <h2>Log what happened</h2>
+          <p className="muted">
+            Quick notes for fights, separations, moves, losses, and decisions. This writes history onto the selected bird records and can create a follow-up reminder.
+          </p>
+        </div>
+        <div className="row-actions">
+          <button className="secondary" type="button" onClick={() => onNavigate("flock")}>
+            Open flock
+          </button>
+          <button className="secondary" type="button" onClick={() => onNavigate("coops")}>
+            Open coops
+          </button>
+        </div>
+      </div>
+
+      <div className="incident-layout">
+        <form className="subpanel incident-form" onSubmit={submitIncident}>
+          <div>
+            <p className="eyebrow">Incident</p>
+            <h3>Details and action</h3>
+          </div>
+          <div className="settings-grid">
+            <label>
+              Date
+              <input name="happenedOn" type="date" defaultValue={dateKeyDaysAgo(0)} />
+            </label>
+            <label>
+              Category
+              <select name="category" defaultValue="BEHAVIOR">
+                {recordEventCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="wide-field">
+              Title
+              <input name="title" required placeholder="Males fought, bird injured, moved to isolation..." />
+            </label>
+            <label className="wide-field">
+              What happened?
+              <textarea name="notes" rows={4} placeholder="Short note: who was involved, what you saw, what you did." />
+            </label>
+            <label>
+              Action
+              <select value={outcome} onChange={(event) => setOutcome(event.target.value as IncidentOutcome)}>
+                {incidentOutcomeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Move to
+              <select name="coopId" disabled={!needsDestination} defaultValue="NO_CHANGE">
+                <option value="NO_CHANGE">No coop change</option>
+                <option value="none">No coop / holding</option>
+                {coops.map((coop) => (
+                  <option key={coop.id} value={coop.id}>
+                    {coop.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Follow-up date
+              <input name="followUpDate" type="date" defaultValue={dateKeyDaysAgo(-1)} />
+            </label>
+            <label>
+              Follow-up priority
+              <select name="followUpPriority" defaultValue="medium">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
+          <p className="muted compact-copy">
+            {incidentOutcomeOptions.find((option) => option.value === outcome)?.detail}
+          </p>
+          {message ? <p className="form-error">{message}</p> : null}
+          <button disabled={busy} type="submit">
+            {busy ? "Saving..." : "Log incident"}
+          </button>
+        </form>
+
+        <aside className="subpanel incident-birds">
+          <div className="table-section-header">
+            <div>
+              <p className="eyebrow">Birds involved</p>
+              <h3>{selectedBirdIds.length ? `${selectedBirdIds.length} selected` : "Select birds"}</h3>
+            </div>
+            <div className="row-actions">
+              {maleBirds.length ? (
+                <button className="secondary" type="button" onClick={() => setSelectedBirdIds(maleBirds.map((bird) => bird.id))}>
+                  Select active males
+                </button>
+              ) : null}
+              <button className="secondary" type="button" onClick={() => setSelectedBirdIds([])}>
+                Clear
+              </button>
+            </div>
+          </div>
+          <div className="incident-bird-list">
+            {activeBirds.length ? (
+              activeBirds.map((bird) => (
+                <label className="incident-bird-option" key={bird.id}>
+                  <input
+                    checked={selectedBirdIds.includes(bird.id)}
+                    type="checkbox"
+                    onChange={() => toggleBird(bird.id)}
+                  />
+                  <span>
+                    <strong>{birdLabel(bird)}</strong>
+                    <small>
+                      {formatBirdSex(bird.sex)} · {bird.coop_name || "No coop"}{bird.bird_type ? ` · ${bird.bird_type}` : ""}
+                    </small>
+                  </span>
+                </label>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>No active birds</h3>
+                <p>Add or reactivate birds before logging an incident against them.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {selectedBirds.length ? (
+        <section className="subpanel incident-preview">
+          <p className="eyebrow">Preview</p>
+          <h3>What Covey will do</h3>
+          <ul>
+            <li>Add a dated history entry to {selectedBirdSummary}.</li>
+            {outcome === "PROCESSED" || outcome === "CULLED" || outcome === "RETIRED" ? (
+              <li>Mark selected birds {incidentOutcomeLabel(outcome).toLowerCase()} and remove active coop assignment.</li>
+            ) : needsDestination ? (
+              <li>Move selected birds if a destination coop is selected.</li>
+            ) : (
+              <li>Leave status and coop assignment unchanged.</li>
+            )}
+            <li>Create a follow-up reminder if the follow-up date is left filled in.</li>
+          </ul>
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
 function WorkCalendar({
   customItems,
   items,
@@ -13184,6 +13518,229 @@ function CoopManager({
   );
 }
 
+const recordEventCategoryOptions: Array<{ value: RecordEventCategory; label: string }> = [
+  { value: "NOTE", label: "Note" },
+  { value: "MOVEMENT", label: "Movement" },
+  { value: "BEHAVIOR", label: "Behavior" },
+  { value: "BREEDING", label: "Breeding" },
+  { value: "PROCESSING", label: "Processing" },
+  { value: "LOSS", label: "Loss" },
+  { value: "OTHER", label: "Other" }
+];
+
+function recordEventCategoryLabel(category: RecordEventCategory) {
+  return recordEventCategoryOptions.find((option) => option.value === category)?.label ?? category;
+}
+
+function RecordHistory({
+  busy: appBusy,
+  entityId,
+  entityType
+}: {
+  busy: boolean;
+  entityId: string;
+  entityType: RecordEventEntity;
+}) {
+  const [events, setEvents] = useState<RecordEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  async function loadEvents() {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await apiRequest<{ recordEvents: RecordEvent[] }>(
+        `/record-events?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}`
+      );
+      setEvents(result.recordEvents);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "History could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadEvents();
+  }, [entityId, entityType]);
+
+  function payload(form: HTMLFormElement) {
+    return {
+      happenedOn: fieldValue(form, "happenedOn"),
+      category: fieldValue(form, "category"),
+      title: fieldValue(form, "title"),
+      notes: fieldValue(form, "notes") || null
+    };
+  }
+
+  async function createEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest<{ recordEvent: { id: string } }>("/record-events", {
+        method: "POST",
+        body: JSON.stringify({
+          entityType,
+          entityId,
+          ...payload(form)
+        })
+      });
+      form.reset();
+      await loadEvents();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "History entry could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateEvent(id: string, form: HTMLFormElement) {
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest<{ recordEvent: { id: string } }>(`/record-events/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload(form))
+      });
+      setEditingId(null);
+      await loadEvents();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "History entry could not be updated.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteEvent(id: string) {
+    if (!confirm("Delete this history entry?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await apiRequest<{ ok: true }>(`/record-events/${id}`, { method: "DELETE" });
+      await loadEvents();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "History entry could not be deleted.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="subpanel table-section record-history">
+      <div className="table-section-header">
+        <div>
+          <p className="eyebrow">History</p>
+          <h3>Notes and observations</h3>
+          <p className="muted compact-copy">A lightweight dated record of the moments worth remembering.</p>
+        </div>
+      </div>
+
+      <CreateRecordPanel buttonLabel="Add entry" eyebrow="History" title="Add history entry">
+        <form className="settings-grid history-form" onSubmit={createEvent}>
+          <label>
+            Date
+            <input name="happenedOn" required type="date" defaultValue={dateKeyDaysAgo(0)} />
+          </label>
+          <label>
+            Category
+            <select name="category" defaultValue="NOTE">
+              {recordEventCategoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="wide-field">
+            What happened?
+            <input name="title" required maxLength={160} placeholder="Moved to grow-out coop" />
+          </label>
+          <label className="wide-field">
+            Details (optional)
+            <textarea name="notes" maxLength={2000} placeholder="Anything useful for later..." />
+          </label>
+          <button disabled={appBusy || saving} type="submit">{saving ? "Saving..." : "Save entry"}</button>
+        </form>
+      </CreateRecordPanel>
+
+      <div className="table-card card-list-table">
+        {error ? <p className="form-error">{error}</p> : null}
+        {loading ? (
+          <p className="muted">Loading history...</p>
+        ) : events.length ? (
+          <div className="source-summary record-history-list">
+            {events.map((event) =>
+              editingId === event.id ? (
+                <form
+                  className="settings-grid history-form history-edit-form"
+                  key={event.id}
+                  onSubmit={(submitEvent) => {
+                    submitEvent.preventDefault();
+                    void updateEvent(event.id, submitEvent.currentTarget);
+                  }}
+                >
+                  <label>
+                    Date
+                    <input name="happenedOn" required type="date" defaultValue={normalizeDateKey(event.happened_on)} />
+                  </label>
+                  <label>
+                    Category
+                    <select name="category" defaultValue={event.category}>
+                      {recordEventCategoryOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="wide-field">
+                    What happened?
+                    <input name="title" required maxLength={160} defaultValue={event.title} />
+                  </label>
+                  <label className="wide-field">
+                    Details
+                    <textarea name="notes" maxLength={2000} defaultValue={event.notes ?? ""} />
+                  </label>
+                  <div className="row-actions">
+                    <button disabled={appBusy || saving} type="submit">Save</button>
+                    <button className="secondary" disabled={saving} type="button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <article key={event.id}>
+                  <div className="record-history-marker" aria-hidden="true" />
+                  <div>
+                    <div className="record-history-heading">
+                      <span className={`status-chip history-${event.category.toLowerCase()}`}>
+                        {recordEventCategoryLabel(event.category)}
+                      </span>
+                      <strong>{event.title}</strong>
+                    </div>
+                    <span>
+                      {displayDate(event.happened_on)}
+                      {event.created_by_name ? ` · added by ${event.created_by_name}` : ""}
+                    </span>
+                    {event.notes ? <p>{event.notes}</p> : null}
+                  </div>
+                  <div className="row-actions">
+                    <button className="secondary" disabled={appBusy || saving} type="button" onClick={() => setEditingId(event.id)}>Edit</button>
+                    <button className="danger" disabled={appBusy || saving} type="button" onClick={() => void deleteEvent(event.id)}>Delete</button>
+                  </div>
+                </article>
+              )
+            )}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h3>No history entries yet</h3>
+            <p>Add only the moments you will want to remember later.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function CoopDetail({
   birds,
   busy,
@@ -13269,6 +13826,8 @@ function CoopDetail({
           </div>
         </section>
       ) : null}
+
+      <RecordHistory busy={busy} entityId={coop.id} entityType="COOP" />
 
       <CreateRecordPanel buttonLabel="Edit coop" eyebrow="Record" title="Edit coop">
         <form
@@ -14710,6 +15269,8 @@ function BirdDetail({
           )}
         </div>
       </section>
+
+      <RecordHistory busy={busy} entityId={bird.id} entityType="BIRD" />
 
       <CreateRecordPanel buttonLabel="Edit bird" eyebrow="Record" title="Edit bird">
         <form

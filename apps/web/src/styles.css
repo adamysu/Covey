@@ -497,6 +497,147 @@ h2 {
   background: rgba(255, 252, 244, 0.62);
 }
 
+.record-history .table-section-header {
+  align-items: flex-start;
+}
+
+.record-history .create-record-panel {
+  margin: 0;
+}
+
+.record-history .create-record-toggle {
+  width: auto;
+  min-width: 150px;
+}
+
+.history-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.incident-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.incident-form {
+  display: grid;
+  gap: 16px;
+}
+
+.incident-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.incident-birds {
+  display: grid;
+  gap: 16px;
+}
+
+.incident-bird-list {
+  display: grid;
+  gap: 10px;
+  max-height: 560px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.incident-bird-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(49, 65, 43, 0.16);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(255, 252, 244, 0.54);
+  cursor: pointer;
+}
+
+.incident-bird-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.incident-bird-option small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.incident-preview {
+  margin-top: 18px;
+}
+
+.incident-preview ul {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.record-history-list {
+  position: relative;
+}
+
+.record-history-list > article {
+  position: relative;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 14px;
+}
+
+.record-history-marker {
+  align-self: stretch;
+  width: 3px;
+  min-height: 56px;
+  border-radius: 99px;
+  background: #82965a;
+}
+
+.record-history-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.record-history-list article p {
+  margin: 7px 0 0;
+  white-space: pre-wrap;
+}
+
+.status-chip.history-movement,
+.status-chip.history-breeding {
+  color: #31451d;
+  background: #dce9bd;
+}
+
+.status-chip.history-behavior,
+.status-chip.history-processing {
+  color: #634813;
+  background: #f2dfaa;
+}
+
+.status-chip.history-loss {
+  color: #7a2f27;
+  background: #f4cbc2;
+}
+
+.history-edit-form {
+  padding: 16px;
+  border: 1px solid rgba(49, 65, 43, 0.16);
+  border-radius: 18px;
+}
+
+.form-error {
+  margin: 0 0 12px;
+  color: #8a3429;
+  font-weight: 800;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 236px 1fr;
@@ -3478,6 +3619,7 @@ h2 {
 		  .camera-overview-grid.grid-2,
 		  .camera-overview-grid.grid-4,
 		  .egg-insights,
+      .incident-layout,
 		  .incubation-layout,
 		  .feed-form,
 		  .egg-form,
@@ -3669,6 +3811,15 @@ h2 {
   .settings-tab {
     flex: 1;
     padding: 9px 8px;
+  }
+
+  .record-history-list > article {
+    grid-template-columns: 8px minmax(0, 1fr);
+  }
+
+  .record-history-list > article > .row-actions {
+    grid-column: 2;
+    justify-content: flex-start;
   }
 }
 

@@ -80,6 +80,8 @@ When a slice is completed, update this backlog before moving to the next one.
    - [x] External calendar sync/iCal export for reminders and optional chores
    - [x] Bird variety/breed type profiles with per-type targets for process age, weight, egg goals, and breeder selection
    - [x] Printable report layouts and saved report presets
+   - [x] Lightweight dated history for birds, coops, and mating periods
+   - [x] Quick incident workflow for fights, separations, moves, and follow-up reminders
    - [ ] CSV export/import helpers for common tables
    - [ ] Inventory beyond feed
    - [ ] Breeding decision simulator

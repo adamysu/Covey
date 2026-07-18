@@ -21,7 +21,8 @@ const exportedTables = [
   "egg_logs",
   "weight_logs",
   "sales",
-  "bird_health_events"
+  "bird_health_events",
+  "record_events"
 ] as const;
 
 const importSections = [
@@ -38,7 +39,8 @@ const importSections = [
   ["Egg logs", "egg_logs", ["egg_logs", "eggLogs"]],
   ["Weight logs", "weight_logs", ["weight_logs", "weightLogs"]],
   ["Sales", "sales", ["sales", "saleRecords"]],
-  ["Health records", "bird_health_events", ["bird_health_events", "healthEvents", "healthRecords"]]
+  ["Health records", "bird_health_events", ["bird_health_events", "healthEvents", "healthRecords"]],
+  ["History entries", "record_events", ["record_events", "recordEvents", "historyEntries"]]
 ] as const;
 
 const importBodySchema = z.object({
@@ -84,14 +86,15 @@ const allowedSaleItemTypes = new Set(["TABLE_EGGS", "FERTILE_EGGS", "CHICKS", "B
 const allowedHealthEventTypes = new Set(["HEALTH", "INJURY", "TREATMENT", "QUARANTINE", "BEHAVIOR", "MORTALITY", "OTHER"]);
 const allowedHealthSeverities = new Set(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 const allowedHealthOutcomes = new Set(["OPEN", "MONITORING", "RESOLVED", "CULLED", "DIED"]);
+const allowedRecordEventCategories = new Set(["NOTE", "MOVEMENT", "BEHAVIOR", "BREEDING", "PROCESSING", "LOSS", "OTHER"]);
 const restoreScopes = ["all", "settings", "coops", "birds", "breeding", "incubation", "eggs", "feed", "sales", "health", "photos"] as const;
 const importSectionKeys = importSections.map(([, key]) => key);
 const scopeSections: Record<(typeof restoreScopes)[number], ImportSectionKey[]> = {
   all: [...importSectionKeys],
   settings: [],
-  coops: ["coops"],
-  birds: ["birds", "weight_logs"],
-  breeding: ["breeding_lines", "mating_periods", "mating_period_hens"],
+  coops: ["coops", "record_events"],
+  birds: ["birds", "weight_logs", "record_events"],
+  breeding: ["breeding_lines", "mating_periods", "mating_period_hens", "record_events"],
   incubation: ["hatch_batches", "incubations"],
   eggs: ["egg_logs"],
   feed: ["feed_types", "feed_inventory_events", "feed_logs"],
@@ -361,7 +364,8 @@ async function buildHomesteadExport(
           "feed inventory/restocks",
           "feed top-offs",
           "sales",
-          "health records"
+          "health records",
+          "bird, coop, and mating-period history"
         ],
         excluded: [
           "password hashes",
@@ -698,9 +702,19 @@ function restoreOptions(options: z.infer<typeof importBodySchema>["options"] | z
 
 function scopedRecords(records: ImportRecords, scope: RestoreScope) {
   const allowed = new Set(scopeSections[scope]);
-  return Object.fromEntries(
+  const scoped = Object.fromEntries(
     importSections.map(([, key]) => [key, allowed.has(key) ? records[key] : []])
   ) as ImportRecords;
+  if (scope === "coops") {
+    scoped.record_events = scoped.record_events.filter((event) => Boolean(textAny(event, ["coop_id", "coopId"])));
+  } else if (scope === "birds") {
+    scoped.record_events = scoped.record_events.filter((event) => Boolean(textAny(event, ["bird_id", "birdId"])));
+  } else if (scope === "breeding") {
+    scoped.record_events = scoped.record_events.filter((event) =>
+      Boolean(textAny(event, ["mating_period_id", "matingPeriodId"]))
+    );
+  }
+  return scoped;
 }
 
 function recordNaturalKey(section: ImportSectionKey, record: ExportRecord) {
@@ -783,7 +797,8 @@ async function dashboardTotals(homesteadId: string) {
        (select coalesce(sum(quantity), 0)::int from egg_logs where homestead_id = $1) as eggs,
        (select count(*)::int from weight_logs where homestead_id = $1) as weight_logs,
        (select count(*)::int from sales where homestead_id = $1) as sales,
-       (select count(*)::int from bird_health_events where homestead_id = $1) as health_records`,
+       (select count(*)::int from bird_health_events where homestead_id = $1) as health_records,
+       (select count(*)::int from record_events where homestead_id = $1) as history_entries`,
     [homesteadId]
   );
   return result.rows[0] as Record<string, number>;
@@ -1013,6 +1028,21 @@ async function buildImportPreview(data: unknown, homesteadId: string, fileName =
     if (birdId && !birdIds.has(birdId)) issues.push({ severity: "error", message: `${label} references an unknown bird.` });
   }
 
+  for (const event of scoped.record_events) {
+    const label = text(event, "title") || text(event, "id") || "history entry";
+    const category = upperAny(event, ["category"], "NOTE");
+    const birdId = textAny(event, ["bird_id", "birdId"]);
+    const coopId = textAny(event, ["coop_id", "coopId"]);
+    const matingPeriodId = textAny(event, ["mating_period_id", "matingPeriodId"]);
+    if (!dateAny(event, ["happened_on", "happenedOn"])) issues.push({ severity: "error", message: `${label} is missing a date.` });
+    if (!text(event, "title")) issues.push({ severity: "error", message: "A history entry is missing a title." });
+    if (!allowedRecordEventCategories.has(category)) issues.push({ severity: "error", message: `${label} has an unknown category.` });
+    if (!birdId && !coopId && !matingPeriodId) issues.push({ severity: "error", message: `${label} is not linked to a record.` });
+    if (birdId && !birdIds.has(birdId)) issues.push({ severity: "error", message: `${label} references an unknown bird.` });
+    if (coopId && !coopIds.has(coopId)) issues.push({ severity: "error", message: `${label} references an unknown coop.` });
+    if (matingPeriodId && !matingPeriodIds.has(matingPeriodId)) issues.push({ severity: "error", message: `${label} references an unknown mating period.` });
+  }
+
   for (const [section, label] of [
     ["coops", "coop"],
     ["breeding_lines", "breeding line"],
@@ -1083,6 +1113,7 @@ async function deleteRestoreScope(client: PoolClient, homesteadId: string, scope
 
   if (scope === "all") {
     await deletePhotosForScope(homesteadId, scope);
+    await client.query("delete from record_events where homestead_id = $1", [homesteadId]);
     await client.query("delete from bird_health_events where homestead_id = $1", [homesteadId]);
     await client.query("delete from sales where homestead_id = $1", [homesteadId]);
     await client.query("delete from weight_logs where homestead_id = $1", [homesteadId]);
@@ -1100,11 +1131,14 @@ async function deleteRestoreScope(client: PoolClient, homesteadId: string, scope
   }
 
   if (scope === "coops") {
+    await client.query("delete from record_events where homestead_id = $1 and coop_id is not null", [homesteadId]);
     await client.query("delete from coops where homestead_id = $1", [homesteadId]);
   } else if (scope === "birds") {
     await deletePhotosForScope(homesteadId, scope);
+    await client.query("delete from record_events where homestead_id = $1 and bird_id is not null", [homesteadId]);
     await client.query("delete from birds where homestead_id = $1", [homesteadId]);
   } else if (scope === "breeding") {
+    await client.query("delete from record_events where homestead_id = $1 and mating_period_id is not null", [homesteadId]);
     await client.query("delete from mating_periods where homestead_id = $1", [homesteadId]);
     await client.query("delete from breeding_lines where homestead_id = $1", [homesteadId]);
   } else if (scope === "incubation") {
@@ -1480,6 +1514,26 @@ async function importData(user: SessionUser, data: unknown, options: RestoreOpti
       if (text(event, "id")) maps.health_events.set(text(event, "id"), result.rows[0].id);
     }
     importedCounts.bird_health_events = records.bird_health_events.length;
+
+    for (const event of records.record_events) {
+      await client.query(
+        `insert into record_events (
+           homestead_id, bird_id, coop_id, mating_period_id, happened_on, category, title, notes
+         )
+         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          user.homestead_id,
+          mapRef(event, ["bird_id", "birdId"], maps.birds),
+          mapRef(event, ["coop_id", "coopId"], maps.coops),
+          mapRef(event, ["mating_period_id", "matingPeriodId"], maps.mating_periods),
+          dateAny(event, ["happened_on", "happenedOn"]),
+          upperAny(event, ["category"], "NOTE"),
+          textAny(event, ["title"]) || "Imported history entry",
+          nullableText(event, ["notes"])
+        ]
+      );
+    }
+    importedCounts.record_events = records.record_events.length;
 
     await client.query(
       `update birds

@@ -18,6 +18,7 @@ import { healthRoutes } from "./routes/health.js";
 import { homesteadRoutes } from "./routes/homestead.js";
 import { incubationRoutes } from "./routes/incubations.js";
 import { photoRoutes } from "./routes/photos.js";
+import { recordEventRoutes } from "./routes/recordEvents.js";
 import { saleRoutes } from "./routes/sales.js";
 
 const app = Fastify({
@@ -115,6 +116,7 @@ await app.register(incubationRoutes);
 await app.register(saleRoutes);
 await app.register(healthRecordRoutes);
 await app.register(photoRoutes);
+await app.register(recordEventRoutes);
 
 startBackupScheduler(app.log);
 
