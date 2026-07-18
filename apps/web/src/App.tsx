@@ -225,12 +225,24 @@ type IncidentInput = {
   followUpDate: string;
   followUpPriority: WorkItemPriority;
 };
+type BreedingSimulation = {
+  score: number;
+  label: string;
+  tone: "strong" | "positive" | "caution" | "risk";
+  summary: string;
+  strengths: string[];
+  cautions: string[];
+  assumptions: string[];
+};
 
 type RecordEvent = {
   id: string;
   bird_id: string | null;
+  bird_label?: string | null;
   coop_id: string | null;
+  coop_name?: string | null;
   mating_period_id: string | null;
+  mating_period_label?: string | null;
   happened_on: string;
   category: RecordEventCategory;
   title: string;
@@ -1548,6 +1560,206 @@ function buildRecommendationItems({
   }
 
   return items.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+}
+
+function simulateBreedingDecision({
+  birds,
+  breedingLine,
+  hatchBatches,
+  henIds,
+  homestead,
+  matingPeriods,
+  sireId
+}: {
+  birds: Bird[];
+  breedingLine: BreedingLine | null;
+  hatchBatches: HatchBatch[];
+  henIds: string[];
+  homestead: Homestead;
+  matingPeriods: MatingPeriod[];
+  sireId: string;
+}): BreedingSimulation | null {
+  const sire = birds.find((bird) => bird.id === sireId) ?? null;
+  const hens = henIds.map((id) => birds.find((bird) => bird.id === id)).filter((bird): bird is Bird => Boolean(bird));
+  if (!sire || !hens.length) return null;
+
+  const strengths: string[] = [];
+  const cautions: string[] = [];
+  const assumptions: string[] = [
+    "This is a planning score, not a genetics guarantee.",
+    "It uses current records, line results, status, age, weight, and notes. Missing data lowers confidence instead of blocking the decision."
+  ];
+  let score = 50;
+
+  const targetHens = preferenceNumber(homestead, "hensPerRooster", 4);
+  const ratioDistance = Math.abs(hens.length - targetHens);
+  if (hens.length === targetHens) {
+    score += 10;
+    strengths.push(`Hen group matches the configured 1:${targetHens} target.`);
+  } else if (ratioDistance <= 1) {
+    score += 4;
+    strengths.push(`Hen group is close to the configured 1:${targetHens} target.`);
+  } else {
+    score -= Math.min(14, ratioDistance * 4);
+    cautions.push(`Hen group has ${hens.length} hens; target is about ${targetHens}.`);
+  }
+
+  if (breedingLine) {
+    const fertility = fertileRate(breedingLine.eggs_set, breedingLine.fertile_eggs);
+    const hatchRate = fertileRate(breedingLine.eggs_set, breedingLine.hatched_count);
+    if (fertility != null) {
+      if (fertility >= 80) {
+        score += 12;
+        strengths.push(`${breedingLine.name} has strong recorded fertility (${rateLabel(fertility)}).`);
+      } else if (fertility >= 65) {
+        score += 5;
+        strengths.push(`${breedingLine.name} has usable recorded fertility (${rateLabel(fertility)}).`);
+      } else {
+        score -= 10;
+        cautions.push(`${breedingLine.name} fertility is low (${rateLabel(fertility)}).`);
+      }
+    }
+    if (hatchRate != null) {
+      if (hatchRate >= 70) {
+        score += 8;
+        strengths.push(`${breedingLine.name} hatch rate is solid (${rateLabel(hatchRate)}).`);
+      } else if (hatchRate < 50) {
+        score -= 8;
+        cautions.push(`${breedingLine.name} hatch rate is low (${rateLabel(hatchRate)}).`);
+      }
+    }
+    if (numberValue(breedingLine.eggs_set) === 0) cautions.push(`${breedingLine.name} does not have incubation outcomes yet.`);
+  } else {
+    score -= 8;
+    cautions.push("No breeding line selected, so line-level fertility and hatch history cannot be used.");
+  }
+
+  const selectedBirds = [sire, ...hens];
+  const ageWeeks = (bird: Bird) => {
+    const days = ageDaysOn(bird.hatch_date, dateKeyDaysAgo(0));
+    return days == null ? null : days / 7;
+  };
+  const matureBirds = selectedBirds.filter((bird) => {
+    const weeks = ageWeeks(bird);
+    return weeks != null && weeks >= birdMinProcessAgeWeeks(bird, homestead);
+  });
+  if (matureBirds.length === selectedBirds.length) {
+    score += 8;
+    strengths.push("All selected birds appear mature by age/type settings.");
+  } else {
+    score -= Math.min(10, (selectedBirds.length - matureBirds.length) * 3);
+    cautions.push("One or more selected birds are missing hatch dates or may be younger than the configured maturity target.");
+  }
+
+  const weightedBirds = selectedBirds.filter((bird) => bird.current_weight_oz != null);
+  if (weightedBirds.length) {
+    const nearTarget = weightedBirds.filter(
+      (bird) => numberValue(bird.current_weight_oz) >= birdTargetLiveWeightOz(bird, homestead) * 0.85
+    );
+    if (nearTarget.length === weightedBirds.length) {
+      score += 6;
+      strengths.push("Recorded weights are near target for the selected birds that have weights.");
+    } else {
+      score -= 5;
+      cautions.push("Some recorded weights are below the configured type target.");
+    }
+  } else {
+    cautions.push("No selected birds have weights recorded. That is okay for hobby use, but growth potential is a softer guess.");
+  }
+
+  if (sire.sex !== "MALE") {
+    score -= 12;
+    cautions.push(`${birdLabel(sire)} is not marked male.`);
+  }
+  const nonFemaleHens = hens.filter((hen) => hen.sex !== "FEMALE");
+  if (nonFemaleHens.length) {
+    score -= Math.min(12, nonFemaleHens.length * 4);
+    cautions.push(`${nonFemaleHens.length} selected hen ${nonFemaleHens.length === 1 ? "is" : "are"} not marked female.`);
+  }
+
+  const behaviorPattern = /\b(bully|aggressive|aggression|attack|attacking|fight|fighting|injury|injured|mean)\b/i;
+  const behaviorBirds = selectedBirds.filter((bird) => behaviorPattern.test(bird.notes ?? ""));
+  if (behaviorBirds.length) {
+    score -= Math.min(18, behaviorBirds.length * 8);
+    cautions.push(`Behavior notes mention aggression or injury for ${behaviorBirds.map(birdLabel).join(", ")}.`);
+  }
+
+  const lineIds = new Set(selectedBirds.map((bird) => bird.breeding_line_id).filter(Boolean));
+  const batchIds = new Set(selectedBirds.map((bird) => bird.hatch_batch_id).filter(Boolean));
+  if (batchIds.size === 1 && selectedBirds.every((bird) => bird.hatch_batch_id)) {
+    score -= 16;
+    cautions.push("All selected birds appear to come from the same hatch batch. Avoid close sibling pairings unless that is intentional.");
+  } else if (lineIds.size === 1 && selectedBirds.every((bird) => bird.breeding_line_id)) {
+    score -= 6;
+    cautions.push("Selected birds all appear to be from the same line. That may be fine for line breeding, but watch diversity.");
+  } else {
+    score += 5;
+    strengths.push("Selected birds do not appear to all come from the same known hatch batch.");
+  }
+
+  const priorPeriods = matingPeriods.filter(
+    (period) =>
+      period.sire_id === sire.id ||
+      period.hens.some((hen) => henIds.includes(hen.id)) ||
+      (breedingLine && period.breeding_line_id === breedingLine.id)
+  );
+  const priorEggs = priorPeriods.reduce((sum, period) => sum + numberValue(period.eggs_set), 0);
+  const priorFertile = priorPeriods.reduce((sum, period) => sum + numberValue(period.fertile_eggs), 0);
+  const priorHatched = priorPeriods.reduce((sum, period) => sum + numberValue(period.hatched_count), 0);
+  const priorFertility = fertileRate(priorEggs, priorFertile);
+  const priorHatch = fertileRate(priorEggs, priorHatched);
+  if (priorFertility != null || priorHatch != null) {
+    if ((priorFertility ?? 0) >= 75 || (priorHatch ?? 0) >= 65) {
+      score += 8;
+      strengths.push(`Related prior periods show useful results (${rateLabel(priorFertility)} fertility, ${rateLabel(priorHatch)} hatch).`);
+    } else {
+      score -= 6;
+      cautions.push(`Related prior periods have weak results (${rateLabel(priorFertility)} fertility, ${rateLabel(priorHatch)} hatch).`);
+    }
+  } else {
+    assumptions.push("No prior mating-period results matched this exact bird/line context.");
+  }
+
+  const relatedBatchIds = new Set(
+    hatchBatches
+      .filter((batch) => (breedingLine && batch.breeding_line_id === breedingLine.id) || (batch.mating_period_id && priorPeriods.some((period) => period.id === batch.mating_period_id)))
+      .map((batch) => batch.id)
+  );
+  const relatedOffspring = birds.filter((bird) => bird.hatch_batch_id != null && relatedBatchIds.has(bird.hatch_batch_id));
+  const relatedWeighted = relatedOffspring.filter((bird) => bird.current_weight_oz != null);
+  if (relatedWeighted.length >= 3) {
+    const averageWeight =
+      relatedWeighted.reduce((sum, bird) => sum + numberValue(bird.current_weight_oz), 0) / relatedWeighted.length;
+    if (averageWeight >= preferenceNumber(homestead, "targetLiveWeightOz", 8) * 0.85) {
+      score += 6;
+      strengths.push(`Related offspring average ${averageWeight.toFixed(1)} oz across recorded weights.`);
+    } else {
+      score -= 4;
+      cautions.push(`Related offspring average ${averageWeight.toFixed(1)} oz, below the general target context.`);
+    }
+  }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const label = score >= 78 ? "Strong option" : score >= 62 ? "Usable option" : score >= 45 ? "Use with caution" : "Avoid for now";
+  const tone: BreedingSimulation["tone"] = score >= 78 ? "strong" : score >= 62 ? "positive" : score >= 45 ? "caution" : "risk";
+  const summary =
+    score >= 78
+      ? "Good candidate for a planned mating period, based on the records Covey has."
+      : score >= 62
+        ? "Reasonable option, but review the cautions before setting eggs from this group."
+        : score >= 45
+          ? "Possible, but the current records suggest this should be watched closely."
+          : "Current records suggest choosing a different pairing or gathering more context first.";
+
+  return {
+    score,
+    label,
+    tone,
+    summary,
+    strengths: strengths.length ? strengths : ["No major positive signals yet. Add line outcomes, hatch results, or notes to make this smarter."],
+    cautions: cautions.length ? cautions : ["No major cautions found in the current records."],
+    assumptions
+  };
 }
 
 function priorityRank(priority: WorkItemPriority) {
@@ -6737,6 +6949,9 @@ function BreedingManager({
   const [bulkPeriodSireId, setBulkPeriodSireId] = useState("NO_CHANGE");
   const [bulkPeriodEndedOn, setBulkPeriodEndedOn] = useState("");
   const [bulkPeriodNotes, setBulkPeriodNotes] = useState("");
+  const [simLineId, setSimLineId] = useState("");
+  const [simSireId, setSimSireId] = useState("");
+  const [simHenIds, setSimHenIds] = useState<string[]>([]);
   const activeLines = breedingLines.filter((line) => line.active);
   const activePeriods = matingPeriods.filter((period) => !period.ended_on);
   const totalEggsSet = matingPeriods.reduce((sum, period) => sum + numberValue(period.eggs_set), 0);
@@ -6747,6 +6962,16 @@ function BreedingManager({
   const possibleHens = activeBirds.filter((bird) => bird.sex === "FEMALE" || bird.sex === "UNKNOWN");
   const selectedLine = breedingLines.find((line) => line.id === selectedLineId) ?? null;
   const selectedPeriod = matingPeriods.find((period) => period.id === selectedPeriodId) ?? null;
+  const simulatedLine = breedingLines.find((line) => line.id === simLineId) ?? null;
+  const simulatedDecision = simulateBreedingDecision({
+    birds,
+    breedingLine: simulatedLine,
+    hatchBatches,
+    henIds: simHenIds,
+    homestead,
+    matingPeriods,
+    sireId: simSireId
+  });
 
   useEffect(() => {
     if (recordTarget?.type === "breedingLine") {
@@ -6811,6 +7036,18 @@ function BreedingManager({
       current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]
     );
     setBulkPeriodEditing(false);
+  }
+
+  function toggleSimHen(id: string) {
+    setSimHenIds((current) =>
+      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]
+    );
+  }
+
+  function loadSimulatorFromPeriod(period: MatingPeriod) {
+    setSimLineId(period.breeding_line_id);
+    setSimSireId(period.sire_id ?? "");
+    setSimHenIds(period.hens.map((hen) => hen.id));
   }
 
   async function applyBulkLineEdit(event: FormEvent<HTMLFormElement>) {
@@ -6980,6 +7217,130 @@ function BreedingManager({
         <p className="muted compact-copy">
           Growth uses current offspring weights for now. As more age-based weight logs accumulate, this can evolve into an age-adjusted period comparison.
         </p>
+      </section>
+
+      <section className="subpanel breeding-simulator">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Decision simulator</p>
+            <h3>Try a sire and hen group</h3>
+            <p className="muted compact-copy">
+              A planning score for hobby decisions: uses line outcomes, age/type targets, notes, relatedness clues, and prior mating periods.
+            </p>
+          </div>
+        </div>
+        <div className="simulator-layout">
+          <div className="simulator-controls">
+            <div className="settings-grid">
+              <label>
+                Breeding line
+                <select value={simLineId} onChange={(event) => setSimLineId(event.target.value)}>
+                  <option value="">No line selected</option>
+                  {breedingLines.map((line) => (
+                    <option key={line.id} value={line.id}>
+                      {line.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Sire
+                <select value={simSireId} onChange={(event) => setSimSireId(event.target.value)}>
+                  <option value="">Choose sire</option>
+                  {possibleSires.map((bird) => (
+                    <option key={bird.id} value={bird.id}>
+                      {birdLabel(bird)} · {formatBirdSex(bird.sex)} · {bird.coop_name || "No coop"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="simulator-hens">
+              <div className="table-section-header compact">
+                <div>
+                  <strong>Hen group</strong>
+                  <p className="muted compact-copy">{simHenIds.length} selected</p>
+                </div>
+                <div className="row-actions">
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={() => setSimHenIds(possibleHens.slice(0, Math.max(1, preferenceNumber(homestead, "hensPerRooster", 4))).map((bird) => bird.id))}
+                  >
+                    Fill target group
+                  </button>
+                  <button className="secondary" type="button" onClick={() => setSimHenIds([])}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="incident-bird-list simulator-hen-list">
+                {possibleHens.length ? (
+                  possibleHens.map((bird) => (
+                    <label className="incident-bird-option" key={bird.id}>
+                      <input checked={simHenIds.includes(bird.id)} type="checkbox" onChange={() => toggleSimHen(bird.id)} />
+                      <span>
+                        <strong>{birdLabel(bird)}</strong>
+                        <small>
+                          {formatBirdSex(bird.sex)} · {bird.coop_name || "No coop"}{bird.bird_type ? ` · ${bird.bird_type}` : ""}
+                        </small>
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="muted">No active hens or unknown-sex birds are available.</p>
+                )}
+              </div>
+            </div>
+            {activePeriods.length ? (
+              <div className="quick-preset-row simulator-presets">
+                {activePeriods.slice(0, 4).map((period) => (
+                  <button className="secondary" key={period.id} type="button" onClick={() => loadSimulatorFromPeriod(period)}>
+                    Load {period.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="simulator-result">
+            {simulatedDecision ? (
+              <>
+                <article className={`simulator-score ${simulatedDecision.tone}`}>
+                  <p className="eyebrow">Score</p>
+                  <strong>{simulatedDecision.score}</strong>
+                  <span>{simulatedDecision.label}</span>
+                  <p>{simulatedDecision.summary}</p>
+                </article>
+                <div className="source-summary simulator-notes">
+                  <article>
+                    <div>
+                      <strong>Strengths</strong>
+                      <span>{simulatedDecision.strengths.join(" ")}</span>
+                    </div>
+                  </article>
+                  <article>
+                    <div>
+                      <strong>Cautions</strong>
+                      <span>{simulatedDecision.cautions.join(" ")}</span>
+                    </div>
+                  </article>
+                  <article>
+                    <div>
+                      <strong>Assumptions</strong>
+                      <span>{simulatedDecision.assumptions.join(" ")}</span>
+                    </div>
+                  </article>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                <h3>Choose a sire and at least one hen</h3>
+                <p>Covey will score the proposed group once both sides of the pairing are selected.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       <div className="feed-layout">
@@ -11152,11 +11513,34 @@ function IncidentManager({
   const maleBirds = activeBirds.filter((bird) => bird.sex === "MALE");
   const [selectedBirdIds, setSelectedBirdIds] = useState<string[]>([]);
   const [outcome, setOutcome] = useState<IncidentOutcome>("SEPARATED");
+  const [followUpMode, setFollowUpMode] = useState<"tomorrow" | "custom" | "none">("tomorrow");
+  const [recentEvents, setRecentEvents] = useState<RecordEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [message, setMessage] = useState("");
   const selectedBirds = birds.filter((bird) => selectedBirdIds.includes(bird.id));
   const selectedBirdSummary =
     selectedBirds.length === 1 && selectedBirds[0] ? birdLabel(selectedBirds[0]) : `${selectedBirds.length} bird records`;
   const needsDestination = outcome === "SEPARATED" || outcome === "MOVED";
+  const willCreateFollowUp = followUpMode !== "none";
+  const incidentCategoryQuery = incidentRecordCategories.join(",");
+
+  async function loadRecentIncidents() {
+    setLoadingEvents(true);
+    try {
+      const result = await apiRequest<{ recordEvents: RecordEvent[] }>(
+        `/record-events?categories=${encodeURIComponent(incidentCategoryQuery)}&limit=50`
+      );
+      setRecentEvents(result.recordEvents);
+    } catch {
+      setRecentEvents([]);
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadRecentIncidents();
+  }, [incidentCategoryQuery]);
 
   function toggleBird(id: string) {
     setSelectedBirdIds((current) =>
@@ -11187,12 +11571,14 @@ function IncidentManager({
         outcome,
         coopId: fieldValue(form, "coopId") || "NO_CHANGE",
         notes: fieldValue(form, "notes"),
-        followUpDate: fieldValue(form, "followUpDate"),
+        followUpDate: followUpMode === "none" ? "" : fieldValue(form, "followUpDate"),
         followUpPriority: fieldValue(form, "followUpPriority") as WorkItemPriority
       });
       form.reset();
       setSelectedBirdIds([]);
       setOutcome("SEPARATED");
+      setFollowUpMode("tomorrow");
+      await loadRecentIncidents();
       setMessage("Incident logged.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not log incident.");
@@ -11271,17 +11657,31 @@ function IncidentManager({
               </select>
             </label>
             <label>
-              Follow-up date
-              <input name="followUpDate" type="date" defaultValue={dateKeyDaysAgo(-1)} />
-            </label>
-            <label>
-              Follow-up priority
-              <select name="followUpPriority" defaultValue="medium">
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+              Follow-up
+              <select value={followUpMode} onChange={(event) => setFollowUpMode(event.target.value as "tomorrow" | "custom" | "none")}>
+                <option value="tomorrow">Tomorrow</option>
+                <option value="custom">Custom date</option>
+                <option value="none">No follow-up</option>
               </select>
             </label>
+            {willCreateFollowUp ? (
+              <>
+                <label>
+                  Follow-up date
+                  <input name="followUpDate" type="date" defaultValue={dateKeyDaysAgo(-1)} />
+                </label>
+                <label>
+                  Follow-up priority
+                  <select name="followUpPriority" defaultValue="medium">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+              </>
+            ) : (
+              <input name="followUpPriority" type="hidden" value="medium" />
+            )}
           </div>
           <p className="muted compact-copy">
             {incidentOutcomeOptions.find((option) => option.value === outcome)?.detail}
@@ -11349,10 +11749,56 @@ function IncidentManager({
             ) : (
               <li>Leave status and coop assignment unchanged.</li>
             )}
-            <li>Create a follow-up reminder if the follow-up date is left filled in.</li>
+            <li>{willCreateFollowUp ? "Create a follow-up reminder." : "Do not create a follow-up reminder."}</li>
           </ul>
         </section>
       ) : null}
+
+      <section className="subpanel table-section">
+        <div className="table-section-header">
+          <div>
+            <p className="eyebrow">Incident log</p>
+            <h3>Recent incidents</h3>
+            <p className="muted compact-copy">Behavior, movement, processing, and loss entries across the flock.</p>
+          </div>
+          <button className="secondary" type="button" onClick={() => void loadRecentIncidents()}>
+            Refresh
+          </button>
+        </div>
+        <div className="table-card card-list-table">
+          {loadingEvents ? (
+            <p className="muted">Loading incidents...</p>
+          ) : recentEvents.length ? (
+            <div className="source-summary record-history-list incident-log-list">
+              {recentEvents.map((event) => (
+                <article key={event.id}>
+                  <div className="record-history-marker" aria-hidden="true" />
+                  <div>
+                    <div className="record-history-heading">
+                      <span className={`status-chip history-${event.category.toLowerCase()}`}>
+                        {recordEventCategoryLabel(event.category)}
+                      </span>
+                      <strong>{event.title}</strong>
+                    </div>
+                    <span>
+                      {displayDate(event.happened_on)}
+                      {event.bird_label ? ` · ${event.bird_label}` : ""}
+                      {event.coop_name ? ` · ${event.coop_name}` : ""}
+                      {event.mating_period_label ? ` · ${event.mating_period_label}` : ""}
+                    </span>
+                    {event.notes ? <p>{event.notes}</p> : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h3>No incidents logged yet</h3>
+              <p>Use the form above when something happens that you may want to remember later.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </section>
   );
 }
@@ -13527,6 +13973,7 @@ const recordEventCategoryOptions: Array<{ value: RecordEventCategory; label: str
   { value: "LOSS", label: "Loss" },
   { value: "OTHER", label: "Other" }
 ];
+const incidentRecordCategories: RecordEventCategory[] = ["BEHAVIOR", "MOVEMENT", "PROCESSING", "LOSS"];
 
 function recordEventCategoryLabel(category: RecordEventCategory) {
   return recordEventCategoryOptions.find((option) => option.value === category)?.label ?? category;
@@ -13534,27 +13981,47 @@ function recordEventCategoryLabel(category: RecordEventCategory) {
 
 function RecordHistory({
   busy: appBusy,
+  categories,
+  description = "A lightweight dated record of the moments worth remembering.",
+  emptyDetail = "Add only the moments you will want to remember later.",
+  emptyTitle = "No history entries yet",
   entityId,
-  entityType
+  entityType,
+  excludeCategories,
+  hideCreate = false,
+  title = "Notes and observations"
 }: {
   busy: boolean;
+  categories?: RecordEventCategory[];
+  description?: string;
+  emptyDetail?: string;
+  emptyTitle?: string;
   entityId: string;
   entityType: RecordEventEntity;
+  excludeCategories?: RecordEventCategory[];
+  hideCreate?: boolean;
+  title?: string;
 }) {
   const [events, setEvents] = useState<RecordEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const categoryKey = categories?.join(",") ?? "";
+  const excludeCategoryKey = excludeCategories?.join(",") ?? "";
+  const excludedCategorySet = new Set(excludeCategories ?? []);
+  const visibleCategoryOptions = recordEventCategoryOptions.filter((option) => !excludedCategorySet.has(option.value));
 
   async function loadEvents() {
     setLoading(true);
     setError("");
     try {
+      const categoryQuery = categories?.length ? `&categories=${encodeURIComponent(categories.join(","))}` : "";
       const result = await apiRequest<{ recordEvents: RecordEvent[] }>(
-        `/record-events?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}`
+        `/record-events?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}${categoryQuery}`
       );
-      setEvents(result.recordEvents);
+      const excluded = new Set(excludeCategories ?? []);
+      setEvents(result.recordEvents.filter((event) => !excluded.has(event.category)));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "History could not be loaded.");
     } finally {
@@ -13564,7 +14031,7 @@ function RecordHistory({
 
   useEffect(() => {
     void loadEvents();
-  }, [entityId, entityType]);
+  }, [categoryKey, entityId, entityType, excludeCategoryKey]);
 
   function payload(form: HTMLFormElement) {
     return {
@@ -13634,11 +14101,12 @@ function RecordHistory({
       <div className="table-section-header">
         <div>
           <p className="eyebrow">History</p>
-          <h3>Notes and observations</h3>
-          <p className="muted compact-copy">A lightweight dated record of the moments worth remembering.</p>
+          <h3>{title}</h3>
+          <p className="muted compact-copy">{description}</p>
         </div>
       </div>
 
+      {!hideCreate ? (
       <CreateRecordPanel buttonLabel="Add entry" eyebrow="History" title="Add history entry">
         <form className="settings-grid history-form" onSubmit={createEvent}>
           <label>
@@ -13648,7 +14116,7 @@ function RecordHistory({
           <label>
             Category
             <select name="category" defaultValue="NOTE">
-              {recordEventCategoryOptions.map((option) => (
+              {visibleCategoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -13664,6 +14132,7 @@ function RecordHistory({
           <button disabled={appBusy || saving} type="submit">{saving ? "Saving..." : "Save entry"}</button>
         </form>
       </CreateRecordPanel>
+      ) : null}
 
       <div className="table-card card-list-table">
         {error ? <p className="form-error">{error}</p> : null}
@@ -13688,7 +14157,7 @@ function RecordHistory({
                   <label>
                     Category
                     <select name="category" defaultValue={event.category}>
-                      {recordEventCategoryOptions.map((option) => (
+                      {visibleCategoryOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
@@ -13732,8 +14201,8 @@ function RecordHistory({
           </div>
         ) : (
           <div className="empty-state">
-            <h3>No history entries yet</h3>
-            <p>Add only the moments you will want to remember later.</p>
+            <h3>{emptyTitle}</h3>
+            <p>{emptyDetail}</p>
           </div>
         )}
       </div>
@@ -15270,7 +15739,27 @@ function BirdDetail({
         </div>
       </section>
 
-      <RecordHistory busy={busy} entityId={bird.id} entityType="BIRD" />
+      <RecordHistory
+        busy={busy}
+        categories={incidentRecordCategories}
+        description="Fight, separation, movement, processing, and loss entries tied to this bird."
+        emptyDetail="Log incidents from the Incidents page, or add a behavior/movement entry in history."
+        emptyTitle="No incidents for this bird"
+        entityId={bird.id}
+        entityType="BIRD"
+        hideCreate
+        title="Incident history"
+      />
+
+      <RecordHistory
+        busy={busy}
+        description="General notes and observations that are not already shown as incidents."
+        emptyDetail="Add only the moments you will want to remember later."
+        entityId={bird.id}
+        entityType="BIRD"
+        excludeCategories={incidentRecordCategories}
+        title="Notes and observations"
+      />
 
       <CreateRecordPanel buttonLabel="Edit bird" eyebrow="Record" title="Edit bird">
         <form

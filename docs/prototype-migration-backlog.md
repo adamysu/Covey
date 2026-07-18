@@ -84,7 +84,7 @@ When a slice is completed, update this backlog before moving to the next one.
    - [x] Quick incident workflow for fights, separations, moves, and follow-up reminders
    - [ ] CSV export/import helpers for common tables
    - [ ] Inventory beyond feed
-   - [ ] Breeding decision simulator
+   - [x] Breeding decision simulator
 
 1. Breeding
    - [x] Line-level performance detail pages

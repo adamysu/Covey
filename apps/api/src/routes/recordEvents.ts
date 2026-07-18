@@ -20,9 +20,12 @@ const createSchema = entitySchema.and(eventFieldsSchema);
 const patchSchema = eventFieldsSchema.partial();
 const paramsSchema = z.object({ id: z.string().uuid() });
 const querySchema = z.object({
-  entityType: z.enum(["BIRD", "COOP", "MATING_PERIOD"]),
-  entityId: z.string().uuid()
+  entityType: z.enum(["BIRD", "COOP", "MATING_PERIOD"]).optional(),
+  entityId: z.string().uuid().optional(),
+  categories: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100)
 });
+const allowedCategories = new Set(["NOTE", "MOVEMENT", "BEHAVIOR", "BREEDING", "PROCESSING", "LOSS", "OTHER"]);
 
 async function requireEditor(request: FastifyRequest, reply: FastifyReply) {
   const user = await getSessionUser(request);
@@ -57,13 +60,35 @@ export async function recordEventRoutes(app: FastifyInstance) {
     const user = await getSessionUser(request);
     if (!user) return reply.code(401).send({ message: "Not signed in." });
     const query = querySchema.parse(request.query);
-    const { column } = entityColumn(query.entityType);
+    if ((query.entityType && !query.entityId) || (!query.entityType && query.entityId)) {
+      return reply.code(400).send({ message: "Provide both entity type and entity id, or neither." });
+    }
+    const categoryFilter = (query.categories ?? "")
+      .split(",")
+      .map((category) => category.trim().toUpperCase())
+      .filter((category) => allowedCategories.has(category));
+    const filters = ["record_events.homestead_id = $1"];
+    const params: unknown[] = [user.homestead_id];
+
+    if (query.entityType && query.entityId) {
+      const { column } = entityColumn(query.entityType);
+      params.push(query.entityId);
+      filters.push(`record_events.${column} = $${params.length}`);
+    }
+    if (categoryFilter.length) {
+      params.push(categoryFilter);
+      filters.push(`record_events.category = any($${params.length}::text[])`);
+    }
+    params.push(query.limit);
 
     const result = await db.query(
       `select record_events.id,
               record_events.bird_id,
+              coalesce(birds.band, birds.name) as bird_label,
               record_events.coop_id,
+              coops.name as coop_name,
               record_events.mating_period_id,
+              mating_periods.label as mating_period_label,
               record_events.happened_on,
               record_events.category,
               record_events.title,
@@ -73,10 +98,13 @@ export async function recordEventRoutes(app: FastifyInstance) {
               users.display_name as created_by_name
          from record_events
          left join users on users.id = record_events.created_by
-        where record_events.homestead_id = $1
-          and record_events.${column} = $2
-        order by record_events.happened_on desc, record_events.created_at desc`,
-      [user.homestead_id, query.entityId]
+         left join birds on birds.id = record_events.bird_id
+         left join coops on coops.id = record_events.coop_id
+         left join mating_periods on mating_periods.id = record_events.mating_period_id
+        where ${filters.join(" and ")}
+        order by record_events.happened_on desc, record_events.created_at desc
+        limit $${params.length}`,
+      params
     );
 
     return { recordEvents: result.rows };

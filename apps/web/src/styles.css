@@ -578,6 +578,88 @@ h2 {
   font-weight: 800;
 }
 
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.simulator-controls,
+.simulator-result {
+  display: grid;
+  gap: 16px;
+}
+
+.simulator-hens {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(49, 65, 43, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 252, 244, 0.46);
+}
+
+.table-section-header.compact {
+  margin: 0;
+}
+
+.simulator-hen-list {
+  max-height: 420px;
+}
+
+.simulator-presets {
+  justify-content: flex-start;
+}
+
+.simulator-score {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(49, 65, 43, 0.16);
+  border-radius: 26px;
+  padding: 24px;
+  background: rgba(255, 252, 244, 0.58);
+}
+
+.simulator-score strong {
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.08em;
+}
+
+.simulator-score span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 8px 13px;
+  font-weight: 900;
+}
+
+.simulator-score p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.simulator-score.strong span,
+.simulator-score.positive span {
+  color: #31451d;
+  background: #dce9bd;
+}
+
+.simulator-score.caution span {
+  color: #634813;
+  background: #f2dfaa;
+}
+
+.simulator-score.risk span {
+  color: #7a2f27;
+  background: #f4cbc2;
+}
+
+.simulator-notes article {
+  align-items: flex-start;
+}
+
 .record-history-list {
   position: relative;
 }
@@ -3620,6 +3702,7 @@ h2 {
 		  .camera-overview-grid.grid-4,
 		  .egg-insights,
       .incident-layout,
+      .simulator-layout,
 		  .incubation-layout,
 		  .feed-form,
 		  .egg-form,
