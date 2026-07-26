@@ -9,6 +9,19 @@ const updateSchema = z.object({
   preferences: z.record(z.unknown()).optional()
 });
 
+function sanitizeHomestead(row: Record<string, unknown> | undefined) {
+  if (!row) return row;
+  const preferences = row.preferences && typeof row.preferences === "object" ? (row.preferences as Record<string, unknown>) : {};
+  const { oidcClientSecret, ...safePreferences } = preferences;
+  return {
+    ...row,
+    preferences: {
+      ...safePreferences,
+      ...(typeof oidcClientSecret === "string" && oidcClientSecret ? { oidcClientSecretConfigured: true } : {})
+    }
+  };
+}
+
 export async function homesteadRoutes(app: FastifyInstance) {
   app.get("/homestead", async (request, reply) => {
     const user = await getSessionUser(request);
@@ -25,7 +38,7 @@ export async function homesteadRoutes(app: FastifyInstance) {
       [user.homestead_id]
     );
 
-    return { homestead: result.rows[0] };
+    return { homestead: sanitizeHomestead(result.rows[0]) };
   });
 
   app.patch("/homestead", async (request, reply) => {

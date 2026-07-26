@@ -334,6 +334,13 @@ async function buildHomesteadExport(
 
   const exportedAt = new Date();
   const homestead = homesteadResult.rows[0];
+  if (homestead?.preferences && typeof homestead.preferences === "object") {
+    const { oidcClientSecret: _oidcClientSecret, ...safePreferences } = homestead.preferences as Record<string, unknown>;
+    homestead.preferences = {
+      ...safePreferences,
+      ...(typeof _oidcClientSecret === "string" && _oidcClientSecret ? { oidcClientSecretConfigured: true } : {})
+    };
+  }
 
   return {
     filenameBase: safeExportName(homestead?.name),
@@ -347,7 +354,7 @@ async function buildHomesteadExport(
         role: "SYSTEM"
       },
       security_note:
-        "Passwords, sessions, MFA secrets, reset tokens, raw RTSP camera URLs, audit history, backup run history, and uploaded photo files are not included.",
+        "Passwords, sessions, MFA secrets, reset tokens, OIDC client secrets, raw RTSP camera URLs, audit history, backup run history, and uploaded photo files are not included.",
       export_coverage: {
         included: [
           "homestead profile and settings",
@@ -372,6 +379,7 @@ async function buildHomesteadExport(
           "sessions",
           "MFA secrets",
           "password reset tokens",
+          "OIDC client secrets",
           "raw RTSP camera URLs",
           "uploaded photo files",
           "audit history",
@@ -1189,7 +1197,8 @@ async function importData(user: SessionUser, data: unknown, options: RestoreOpti
     if (options.applySettings) {
       const homestead = asRecord(root.homestead);
       const profile = asRecord(homestead.profile);
-      const preferences = asRecord(homestead.preferences);
+      const preferences = { ...asRecord(homestead.preferences) };
+      delete preferences.oidcClientSecretConfigured;
       if (text(homestead, "name") || Object.keys(profile).length) {
         await client.query(
           `update homesteads

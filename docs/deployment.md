@@ -113,6 +113,40 @@ curl -i http://SERVER_IP:API_HOST_PORT/health
 If that works but the browser still shows offline, `PUBLIC_API_URL` was probably built with the
 wrong browser-facing URL. Update `.env` and rebuild the web container.
 
+## SSO / OIDC
+
+Covey can use Pocket ID or another OIDC provider for sign-in while keeping local owner accounts
+available as a fallback.
+
+1. Set the browser-facing API URL in `.env`.
+
+   ```env
+   PUBLIC_API_URL=https://covey.example.com/api
+   CORS_ORIGIN=https://covey.example.com
+   ```
+
+2. Rebuild the web container after changing `PUBLIC_API_URL`.
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+3. In Pocket ID, create an OIDC client for Covey and use this redirect/callback URL:
+
+   ```text
+   https://covey.example.com/api/auth/oidc/callback
+   ```
+
+4. In Covey, open **Settings → Homestead → Security → OIDC provider** and enter:
+
+   - issuer URL, such as `https://id.example.com`;
+   - client ID;
+   - client secret;
+   - scopes, usually `openid email profile`.
+
+Leaving the client secret field blank later keeps the existing secret. Covey exports intentionally
+exclude OIDC client secrets, so after restoring to a new server, re-enter the client secret if needed.
+
 ## Backups
 
 Covey has three kinds of important data:

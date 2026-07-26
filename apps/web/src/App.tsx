@@ -6,6 +6,12 @@ const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 type ApiState = "checking" | "online" | "offline";
 type AuthMode = "register" | "login" | "mfa" | "reset-request" | "reset-complete";
 type ThemeMode = "auto" | "light" | "dark";
+type OidcPublicConfig = {
+  enabled: boolean;
+  providerName: string;
+  startUrl: string | null;
+  callbackUrl: string;
+};
 
 type User = {
   id: string;
@@ -859,6 +865,23 @@ function normalizeThemeMode(value: unknown): ThemeMode {
   return value === "light" || value === "dark" || value === "auto" ? value : "auto";
 }
 
+function authStatusMessage(code: string | null) {
+  if (!code) return "";
+  const messages: Record<string, string> = {
+    oidc_disabled: "SSO is disabled.",
+    oidc_no_homestead: "SSO could not find a Covey homestead.",
+    oidc_config_error: "SSO provider settings could not be loaded. Check issuer URL, client ID, and client secret.",
+    oidc_error: "SSO sign-in was cancelled or rejected by the provider.",
+    oidc_state_error: "SSO sign-in expired. Try again.",
+    oidc_no_email: "SSO provider did not return an email address.",
+    oidc_email_unverified: "SSO email is not verified.",
+    oidc_disabled_account: "This Covey account is disabled.",
+    oidc_no_account: "No Covey account matches that SSO email. Ask an owner to create the account or enable auto-create.",
+    oidc_callback_error: "SSO sign-in could not be completed. Check the API logs for details."
+  };
+  return messages[code] ?? "";
+}
+
 function homesteadSettingsPayload(form: HTMLFormElement, extraPreferences: Record<string, unknown> = {}) {
   const preferences: Record<string, unknown> = {};
   const textFields = [
@@ -873,6 +896,14 @@ function homesteadSettingsPayload(form: HTMLFormElement, extraPreferences: Recor
     "timeFormat",
     "dateFormat",
     "requireMfaForKeepers",
+    "oidcEnabled",
+    "oidcProviderName",
+    "oidcIssuerUrl",
+    "oidcClientId",
+    "oidcScopes",
+    "oidcAutoProvision",
+    "oidcDefaultRole",
+    "oidcRequireVerifiedEmail",
     "preferCalm",
     "weighWeeks",
     "birdTypeProfiles",
@@ -909,6 +940,9 @@ function homesteadSettingsPayload(form: HTMLFormElement, extraPreferences: Recor
 
   for (const field of textFields) {
     if (hasField(form, field)) preferences[field] = fieldValue(form, field);
+  }
+  if (hasField(form, "oidcClientSecret") && fieldValue(form, "oidcClientSecret")) {
+    preferences.oidcClientSecret = fieldValue(form, "oidcClientSecret");
   }
 
   for (const field of numberFields) {
@@ -1844,6 +1878,7 @@ export function App() {
   const [resetToken, setResetToken] = useState("");
   const [needsOwnerAccount, setNeedsOwnerAccount] = useState(true);
   const [pendingLogin, setPendingLogin] = useState<PendingLogin | null>(null);
+  const [oidcConfig, setOidcConfig] = useState<OidcPublicConfig | null>(null);
   const [homestead, setHomestead] = useState<Homestead | null>(null);
   const [coops, setCoops] = useState<Coop[]>([]);
   const [birds, setBirds] = useState<Bird[]>([]);
@@ -1877,6 +1912,8 @@ export function App() {
     try {
       const bootstrap = await apiRequest<{ needsOwnerAccount: boolean }>("/auth/bootstrap");
       setNeedsOwnerAccount(bootstrap.needsOwnerAccount);
+      const ssoConfig = await apiRequest<OidcPublicConfig>("/auth/oidc/config").catch(() => null);
+      setOidcConfig(ssoConfig);
       if (!bootstrap.needsOwnerAccount) setAuthMode((mode) => (mode === "register" ? "login" : mode));
       const me = await apiRequest<{ user: User }>("/auth/me");
       setUser(me.user);
@@ -2013,6 +2050,12 @@ export function App() {
   }
 
   useEffect(() => {
+    const authCode = new URLSearchParams(window.location.search).get("auth");
+    const authMessage = authStatusMessage(authCode);
+    if (authMessage) {
+      setMessage(authMessage);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     fetch(`${apiUrl}/health`, { credentials: "include" })
       .then((response) => setApiState(response.ok ? "online" : "offline"))
       .catch(() => setApiState("offline"));
@@ -2140,6 +2183,16 @@ export function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleOidcLogin(rememberMe: boolean) {
+    if (!oidcConfig?.enabled || !oidcConfig.startUrl) {
+      setMessage("SSO is not configured yet.");
+      return;
+    }
+    const startUrl = new URL(`${apiUrl.replace(/\/+$/, "")}${oidcConfig.startUrl}`, window.location.origin);
+    startUrl.searchParams.set("rememberMe", rememberMe ? "true" : "false");
+    window.location.href = startUrl.toString();
   }
 
   async function handleMfaLogin(event: FormEvent<HTMLFormElement>) {
@@ -3957,9 +4010,11 @@ export function App() {
           authMode={authMode}
           busy={busy}
           needsOwnerAccount={needsOwnerAccount}
+          oidcConfig={oidcConfig}
           pendingLoginEmail={pendingLogin?.email ?? ""}
           resetToken={resetToken}
           onLogin={handleLogin}
+          onOidcLogin={handleOidcLogin}
           onMfaLogin={handleMfaLogin}
           onPasswordResetComplete={handlePasswordResetComplete}
           onPasswordResetRequest={handlePasswordResetRequest}
@@ -3978,9 +4033,11 @@ function AuthPanel({
   authMode,
   busy,
   needsOwnerAccount,
+  oidcConfig,
   pendingLoginEmail,
   resetToken,
   onLogin,
+  onOidcLogin,
   onMfaLogin,
   onPasswordResetComplete,
   onPasswordResetRequest,
@@ -3990,15 +4047,19 @@ function AuthPanel({
   authMode: AuthMode;
   busy: boolean;
   needsOwnerAccount: boolean;
+  oidcConfig: OidcPublicConfig | null;
   pendingLoginEmail: string;
   resetToken: string;
   onLogin: (event: FormEvent<HTMLFormElement>) => void;
+  onOidcLogin: (rememberMe: boolean) => void;
   onMfaLogin: (event: FormEvent<HTMLFormElement>) => void;
   onPasswordResetComplete: (event: FormEvent<HTMLFormElement>) => void;
   onPasswordResetRequest: (event: FormEvent<HTMLFormElement>) => void;
   onRegister: (event: FormEvent<HTMLFormElement>) => void;
   onSwitchMode: (mode: AuthMode) => void;
 }) {
+  const [ssoRememberMe, setSsoRememberMe] = useState(false);
+
   return (
     <section className="panel auth-layout">
       <div>
@@ -4064,26 +4125,44 @@ function AuthPanel({
         ) : null}
 
         {authMode === "login" ? (
-          <form className="form auth-step" onSubmit={onLogin}>
-            <label>
-              Email
-              <input name="email" required type="email" placeholder="you@example.com" />
-            </label>
-            <label>
-              Password
-              <input name="password" required type="password" />
-            </label>
-            <label className="check-row">
-              <input name="rememberMe" type="checkbox" />
-              Remember me on this device
-            </label>
-            <button disabled={busy} type="submit">
-              {busy ? "Signing in..." : "Sign in"}
-            </button>
-            <button className="link-button" type="button" onClick={() => onSwitchMode("reset-request")}>
-              Forgot password?
-            </button>
-          </form>
+          <div className="auth-step auth-login-stack">
+            {oidcConfig?.enabled ? (
+              <div className="sso-login-card">
+                <button disabled={busy} type="button" onClick={() => onOidcLogin(ssoRememberMe)}>
+                  Sign in with {oidcConfig.providerName || "SSO"}
+                </button>
+                <label className="check-row">
+                  <input
+                    checked={ssoRememberMe}
+                    type="checkbox"
+                    onChange={(event) => setSsoRememberMe(event.target.checked)}
+                  />
+                  Remember me on this device
+                </label>
+              </div>
+            ) : null}
+            {oidcConfig?.enabled ? <div className="auth-divider">or use a local account</div> : null}
+            <form className="form" onSubmit={onLogin}>
+              <label>
+                Email
+                <input name="email" required type="email" placeholder="you@example.com" />
+              </label>
+              <label>
+                Password
+                <input name="password" required type="password" />
+              </label>
+              <label className="check-row">
+                <input name="rememberMe" type="checkbox" />
+                Remember me on this device
+              </label>
+              <button disabled={busy} type="submit">
+                {busy ? "Signing in..." : "Sign in"}
+              </button>
+              <button className="link-button" type="button" onClick={() => onSwitchMode("reset-request")}>
+                Forgot password?
+              </button>
+            </form>
+          </div>
         ) : null}
 
         {authMode === "mfa" ? (
@@ -8774,6 +8853,63 @@ function SettingsManager({
                 max="365"
                 defaultValue={displayPreference(homestead, "rememberMeDurationDays", 30)}
               />
+            </label>
+            <div className="settings-divider" />
+            <p className="eyebrow">SSO</p>
+            <h3>OIDC provider</h3>
+            <p className="muted compact-copy">
+              Configure Pocket ID or another OIDC provider. Callback URL: <code>{apiUrl.replace(/\/+$/, "")}/auth/oidc/callback</code>
+            </p>
+            <label>
+              SSO login
+              <select name="oidcEnabled" defaultValue={displayPreference(homestead, "oidcEnabled", "no")}>
+                <option value="no">Disabled</option>
+                <option value="yes">Enabled</option>
+              </select>
+            </label>
+            <label>
+              Provider name
+              <input name="oidcProviderName" defaultValue={displayPreference(homestead, "oidcProviderName", "Pocket ID")} placeholder="Pocket ID" />
+            </label>
+            <label>
+              Issuer URL
+              <input name="oidcIssuerUrl" defaultValue={displayPreference(homestead, "oidcIssuerUrl", "")} placeholder="https://id.example.com" />
+            </label>
+            <label>
+              Client ID
+              <input name="oidcClientId" defaultValue={displayPreference(homestead, "oidcClientId", "")} placeholder="covey" />
+            </label>
+            <label>
+              Client secret
+              <input name="oidcClientSecret" type="password" placeholder="Leave blank to keep existing secret" />
+              {homestead.preferences.oidcClientSecretConfigured ? (
+                <span className="field-hint">A client secret is saved. Enter a new one only if you want to replace it.</span>
+              ) : null}
+            </label>
+            <label>
+              Scopes
+              <input name="oidcScopes" defaultValue={displayPreference(homestead, "oidcScopes", "openid email profile")} />
+            </label>
+            <label>
+              Auto-create users
+              <select name="oidcAutoProvision" defaultValue={displayPreference(homestead, "oidcAutoProvision", "no")}>
+                <option value="no">No, require matching Covey account</option>
+                <option value="yes">Yes, create new SSO users</option>
+              </select>
+            </label>
+            <label>
+              New SSO user role
+              <select name="oidcDefaultRole" defaultValue={displayPreference(homestead, "oidcDefaultRole", "KEEPER")}>
+                <option value="KEEPER">Keeper</option>
+                <option value="VIEWER">Viewer</option>
+              </select>
+            </label>
+            <label>
+              Require verified email
+              <select name="oidcRequireVerifiedEmail" defaultValue={displayPreference(homestead, "oidcRequireVerifiedEmail", "no")}>
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
             </label>
           </article>
         </div>

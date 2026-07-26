@@ -19,6 +19,15 @@ const loginSchema = z.object({
   mfaCode: z.string().optional(),
   rememberMe: z.boolean().optional()
 });
+const oidcStartQuerySchema = z.object({
+  rememberMe: z.enum(["true", "false"]).optional()
+});
+const oidcCallbackQuerySchema = z.object({
+  code: z.string().min(1).optional(),
+  state: z.string().min(16).optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional()
+});
 
 const resetRequestSchema = z.object({
   email: z.string().email()
@@ -54,9 +63,112 @@ const mfaCodeSchema = z.object({
 });
 
 const base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const oidcStateCookie = "covey_oidc_state";
+const oidcVerifierCookie = "covey_oidc_verifier";
+const oidcRememberCookie = "covey_oidc_remember";
+
+type OidcConfig = {
+  enabled: boolean;
+  providerName: string;
+  issuerUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scopes: string;
+  autoProvision: boolean;
+  defaultRole: "KEEPER" | "VIEWER";
+  requireVerifiedEmail: boolean;
+};
+
+type OidcDiscovery = {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+};
 
 function hashResetToken(token: string) {
   return createHash("sha256").update(`${token}.${env.SESSION_SECRET}`).digest("hex");
+}
+
+function base64Url(bytes: Buffer) {
+  return bytes.toString("base64url");
+}
+
+function pkceChallenge(verifier: string) {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+function webRedirect(path = "") {
+  return `${env.CORS_ORIGIN.replace(/\/+$/, "")}${path}`;
+}
+
+function oidcRedirectUri(request: FastifyRequest) {
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto || "http";
+  const base = env.PUBLIC_API_URL ?? `${protocol}://${request.headers.host ?? "localhost"}`;
+  return `${base.replace(/\/+$/, "")}/auth/oidc/callback`;
+}
+
+function preferenceBool(preferences: Record<string, unknown>, key: string, fallback = false) {
+  const value = preferences[key];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value === "yes" || value === "true" || value === "on";
+  return fallback;
+}
+
+async function oidcConfig() {
+  const result = await db.query(
+    `select homesteads.id as homestead_id, homestead_settings.preferences
+       from homesteads
+       join homestead_settings on homestead_settings.homestead_id = homesteads.id
+      order by homesteads.created_at asc
+      limit 1`
+  );
+  const row = result.rows[0];
+  const preferences = (row?.preferences ?? {}) as Record<string, unknown>;
+  const defaultRole = String(preferences.oidcDefaultRole ?? "KEEPER") === "VIEWER" ? "VIEWER" : "KEEPER";
+  const config: OidcConfig & { homesteadId: string | null } = {
+    homesteadId: row?.homestead_id ?? null,
+    enabled: preferenceBool(preferences, "oidcEnabled"),
+    providerName: String(preferences.oidcProviderName ?? "Pocket ID"),
+    issuerUrl: String(preferences.oidcIssuerUrl ?? "").replace(/\/+$/, ""),
+    clientId: String(preferences.oidcClientId ?? ""),
+    clientSecret: String(preferences.oidcClientSecret ?? ""),
+    scopes: String(preferences.oidcScopes ?? "openid email profile"),
+    autoProvision: preferenceBool(preferences, "oidcAutoProvision"),
+    defaultRole,
+    requireVerifiedEmail: preferenceBool(preferences, "oidcRequireVerifiedEmail")
+  };
+  return config;
+}
+
+async function fetchJson<T>(url: string, options?: RequestInit) {
+  const response = await fetch(url, options);
+  const body = (await response.json().catch(() => ({}))) as unknown;
+  if (!response.ok) {
+    const message =
+      body && typeof body === "object" && "error_description" in body && typeof body.error_description === "string"
+        ? body.error_description
+        : `OIDC request failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
+async function oidcDiscovery(config: OidcConfig) {
+  if (!config.issuerUrl || !config.clientId || !config.clientSecret) {
+    throw new Error("OIDC is not fully configured.");
+  }
+  const discovery = await fetchJson<Partial<OidcDiscovery>>(`${config.issuerUrl}/.well-known/openid-configuration`);
+  if (!discovery.authorization_endpoint || !discovery.token_endpoint || !discovery.userinfo_endpoint) {
+    throw new Error("OIDC discovery document is missing required endpoints.");
+  }
+  return discovery as OidcDiscovery;
+}
+
+function clearOidcCookies(reply: FastifyReply) {
+  reply.clearCookie(oidcStateCookie, { path: "/" });
+  reply.clearCookie(oidcVerifierCookie, { path: "/" });
+  reply.clearCookie(oidcRememberCookie, { path: "/" });
 }
 
 function base32Encode(bytes: Buffer) {
@@ -133,6 +245,131 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/auth/bootstrap", async () => {
     const result = await db.query("select exists(select 1 from users) as has_users");
     return { needsOwnerAccount: !result.rows[0]?.has_users };
+  });
+
+  app.get("/auth/oidc/config", async (request) => {
+    const config = await oidcConfig();
+    const configured = Boolean(config.enabled && config.issuerUrl && config.clientId && config.clientSecret);
+    return {
+      enabled: configured,
+      providerName: config.providerName,
+      startUrl: configured ? "/auth/oidc/start" : null,
+      callbackUrl: oidcRedirectUri(request)
+    };
+  });
+
+  app.get("/auth/oidc/start", async (request, reply) => {
+    const query = oidcStartQuerySchema.parse(request.query);
+    const config = await oidcConfig();
+    if (!config.enabled) return reply.redirect(webRedirect("/?auth=oidc_disabled"));
+    if (!config.homesteadId) return reply.redirect(webRedirect("/?auth=oidc_no_homestead"));
+
+    try {
+      const discovery = await oidcDiscovery(config);
+      const state = base64Url(randomBytes(32));
+      const verifier = base64Url(randomBytes(48));
+      const authorization = new URL(discovery.authorization_endpoint);
+      authorization.searchParams.set("client_id", config.clientId);
+      authorization.searchParams.set("redirect_uri", oidcRedirectUri(request));
+      authorization.searchParams.set("response_type", "code");
+      authorization.searchParams.set("scope", config.scopes || "openid email profile");
+      authorization.searchParams.set("state", state);
+      authorization.searchParams.set("code_challenge", pkceChallenge(verifier));
+      authorization.searchParams.set("code_challenge_method", "S256");
+
+      const cookieOptions = {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        secure: env.COOKIE_SECURE,
+        path: "/",
+        maxAge: 10 * 60
+      };
+      reply.setCookie(oidcStateCookie, state, cookieOptions);
+      reply.setCookie(oidcVerifierCookie, verifier, cookieOptions);
+      reply.setCookie(oidcRememberCookie, query.rememberMe === "true" ? "true" : "false", cookieOptions);
+      return reply.redirect(authorization.toString());
+    } catch (error) {
+      request.log.error(error);
+      return reply.redirect(webRedirect("/?auth=oidc_config_error"));
+    }
+  });
+
+  app.get("/auth/oidc/callback", async (request, reply) => {
+    const query = oidcCallbackQuerySchema.parse(request.query);
+    const expectedState = request.cookies[oidcStateCookie];
+    const verifier = request.cookies[oidcVerifierCookie];
+    const rememberMe = request.cookies[oidcRememberCookie] === "true";
+    clearOidcCookies(reply);
+
+    if (query.error) {
+      return reply.redirect(webRedirect(`/?auth=oidc_error&reason=${encodeURIComponent(query.error_description || query.error)}`));
+    }
+    if (!query.code || !query.state || !expectedState || !verifier || query.state !== expectedState) {
+      return reply.redirect(webRedirect("/?auth=oidc_state_error"));
+    }
+
+    try {
+      const config = await oidcConfig();
+      const discovery = await oidcDiscovery(config);
+      const tokenBody = new URLSearchParams({
+        grant_type: "authorization_code",
+        code: query.code,
+        redirect_uri: oidcRedirectUri(request),
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code_verifier: verifier
+      });
+      const token = await fetchJson<{ access_token?: string }>(discovery.token_endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: tokenBody
+      });
+      if (!token.access_token) throw new Error("OIDC token response did not include an access token.");
+
+      const profile = await fetchJson<Record<string, unknown>>(discovery.userinfo_endpoint, {
+        headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" }
+      });
+      const email = typeof profile.email === "string" ? profile.email.toLowerCase() : "";
+      const emailVerified = profile.email_verified === true || profile.email_verified === "true";
+      const displayName =
+        (typeof profile.name === "string" && profile.name.trim()) ||
+        (typeof profile.preferred_username === "string" && profile.preferred_username.trim()) ||
+        email;
+      if (!email) return reply.redirect(webRedirect("/?auth=oidc_no_email"));
+      if (config.requireVerifiedEmail && !emailVerified) return reply.redirect(webRedirect("/?auth=oidc_email_unverified"));
+
+      const existing = await db.query(
+        `select id, disabled_at
+           from users
+          where lower(email) = lower($1)
+          limit 1`,
+        [email]
+      );
+      let user = existing.rows[0];
+      if (user?.disabled_at) return reply.redirect(webRedirect("/?auth=oidc_disabled_account"));
+      if (!user) {
+        if (!config.autoProvision || !config.homesteadId) return reply.redirect(webRedirect("/?auth=oidc_no_account"));
+        const created = await db.query(
+          `insert into users (homestead_id, email, display_name, role, password_hash)
+           values ($1, $2, $3, $4, $5)
+           returning id`,
+          [
+            config.homesteadId,
+            email,
+            displayName || email,
+            config.defaultRole,
+            await hashPassword(base64Url(randomBytes(48)))
+          ]
+        );
+        user = created.rows[0];
+      }
+
+      await createSession(reply, user.id, rememberMe);
+      return reply.redirect(webRedirect("/"));
+    } catch (error) {
+      request.log.error(error);
+      return reply.redirect(webRedirect("/?auth=oidc_callback_error"));
+    }
   });
 
   app.post("/auth/register", async (request, reply) => {

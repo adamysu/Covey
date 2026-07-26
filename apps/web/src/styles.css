@@ -264,6 +264,38 @@ h2 {
   animation: auth-step-in 180ms ease-out;
 }
 
+.auth-login-stack,
+.sso-login-card {
+  display: grid;
+  gap: 14px;
+}
+
+.sso-login-card {
+  border: 1px solid rgba(96, 117, 61, 0.2);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 252, 244, 0.55);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #61705a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgba(49, 65, 43, 0.16);
+}
+
 .mfa-step {
   border: 1px solid rgba(96, 117, 61, 0.22);
   border-radius: 18px;
@@ -296,6 +328,23 @@ h2 {
 .settings-grid button,
 .bird-form button {
   align-self: end;
+}
+
+.settings-divider {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(49, 65, 43, 0.14);
+}
+
+.field-hint {
+  color: var(--muted);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 0.35rem;
 }
 
 .dashboard-header {
