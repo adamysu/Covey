@@ -398,7 +398,7 @@ type CoopSortKey = "name" | "type" | "capacity" | "birds";
 type FeedSortKey = "name" | "protein" | "bagCost" | "cups" | "cupCost" | "inventory" | "active";
 type FeedLogSortKey = "date" | "coop" | "feed" | "amount" | "cost" | "birdCost";
 type RestockSortKey = "date" | "feed" | "amount" | "cups" | "cost" | "cupCost";
-type SettingsTab = "homestead" | "flock" | "tracking" | "value" | "incubation" | "data" | "users";
+type SettingsTab = "homestead" | "security" | "flock" | "tracking" | "value" | "incubation" | "data" | "users";
 type CameraPlayerSize = "compact" | "standard" | "large";
 type CameraGridPreset = "auto" | "2" | "4";
 type ReportPreset = {
@@ -8738,6 +8738,7 @@ function SettingsManager({
         <div className="settings-tabs" role="tablist" aria-label="Settings sections">
           {[
             ["homestead", "Homestead"],
+            ["security", "Security / SSO"],
             ["flock", "Flock planning"],
             ["tracking", "Tracking"],
             ["value", "Value model"],
@@ -8820,6 +8821,9 @@ function SettingsManager({
               </select>
             </label>
           </article>
+        </div>
+
+        <div className={`settings-grid settings-panel ${tab === "security" ? "active" : ""}`}>
           <article className="settings-card">
             <p className="eyebrow">Security</p>
             <h3>Password policy</h3>
@@ -8854,7 +8858,8 @@ function SettingsManager({
                 defaultValue={displayPreference(homestead, "rememberMeDurationDays", 30)}
               />
             </label>
-            <div className="settings-divider" />
+          </article>
+          <article className="settings-card wide-settings-card">
             <p className="eyebrow">SSO</p>
             <h3>OIDC provider</h3>
             <p className="muted compact-copy">
